@@ -3,6 +3,7 @@ package core
 import (
 	"fmt"
 	"net"
+	"net/url"
 	"strconv"
 	"strings"
 )
@@ -10,6 +11,8 @@ import (
 // Config holds the local-only development listener settings.
 type Config struct {
 	Address string
+	DataDir string
+	Origin  string
 }
 
 // LoadConfig allows only loopback listeners unless explicitly overridden for
@@ -36,5 +39,20 @@ func LoadConfig(getenv func(string) string) (Config, error) {
 	if !ip.IsLoopback() && allow != "true" {
 		return Config{}, fmt.Errorf("non-loopback listener requires explicit isolated-container opt-in")
 	}
-	return Config{Address: address}, nil
+	dir := strings.TrimSpace(getenv("ALLMY_DATA_DIR"))
+	if dir == "" {
+		dir = "data"
+	}
+	origin := strings.TrimSpace(getenv("ALLMY_ORIGIN"))
+	if origin == "" {
+		origin = "http://localhost:8080"
+	}
+	u, err := url.Parse(origin)
+	if err != nil || u.Hostname() == "" || u.User != nil || u.Path != "" || u.RawQuery != "" || u.ForceQuery || u.Fragment != "" || u.Opaque != "" {
+		return Config{}, fmt.Errorf("ALLMY_ORIGIN must be an absolute origin without path")
+	}
+	if u.Scheme != "https" && !(u.Scheme == "http" && (u.Hostname() == "localhost" || u.Hostname() == "127.0.0.1" || u.Hostname() == "::1")) {
+		return Config{}, fmt.Errorf("ALLMY_ORIGIN requires HTTPS outside loopback")
+	}
+	return Config{Address: address, DataDir: dir, Origin: origin}, nil
 }

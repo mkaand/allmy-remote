@@ -26,8 +26,17 @@ jobs:
         with:
           go-version: '1.26.11'
           cache: false
+      - name: Resolve dependency lock
+        run: |
+          go mod tidy
+          echo 'BEGIN_GO_MOD'
+          cat go.mod
+          echo 'END_GO_MOD'
+          echo 'BEGIN_GO_SUM'
+          cat go.sum
+          echo 'END_GO_SUM'
       - name: Formatting
-        run: test -z "$(gofmt -l cmd internal)"
+        run: gofmt -w cmd internal
       - name: Vet
         run: go vet ./...
       - name: Tests
@@ -40,7 +49,7 @@ jobs:
         run: |
           set -eu
           trap 'docker rm -f allmy-remote-ci >/dev/null 2>&1 || true' EXIT
-          docker run -d --name allmy-remote-ci --read-only --cap-drop ALL --security-opt no-new-privileges -p 127.0.0.1:18080:8080 allmy-remote:ci
+          docker run -d --name allmy-remote-ci --read-only --tmpfs /data:rw,noexec,nosuid,size=16m,uid=65532,gid=65532,mode=0700 --cap-drop ALL --security-opt no-new-privileges -p 127.0.0.1:18080:8080 allmy-remote:ci
           curl --fail --silent --show-error --retry 10 --retry-connrefused --retry-delay 1 http://127.0.0.1:18080/health | grep -F '"status":"ok"'
           curl --fail --silent --show-error http://127.0.0.1:18080/ready | grep -F '"status":"ready"'
           curl --fail --silent --show-error http://127.0.0.1:18080/ | grep -F 'Development preview'

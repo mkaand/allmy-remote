@@ -31,7 +31,7 @@ func TestRoutes(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.method+" "+tt.path+" "+tt.body, func(t *testing.T) {
 			res := httptest.NewRecorder()
-			Handler(func() bool { return tt.ready }).ServeHTTP(res, httptest.NewRequest(tt.method, tt.path, nil))
+			Handler(func() bool { return tt.ready }, nil).ServeHTTP(res, httptest.NewRequest(tt.method, tt.path, nil))
 			if res.Code != tt.code || !strings.Contains(res.Body.String(), tt.body) {
 				t.Fatalf("unexpected response: %d %q", res.Code, res.Body.String())
 			}
@@ -53,7 +53,7 @@ func TestGracefulShutdown(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	done := make(chan error, 1)
-	go func() { done <- serve(ctx, listener) }()
+	go func() { done <- serve(ctx, listener, nil) }()
 
 	client := &http.Client{Timeout: 2 * time.Second}
 	res, err := client.Get("http://" + listener.Addr().String() + "/ready")

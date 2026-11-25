@@ -17,8 +17,8 @@ import (
 //go:embed static/index.html static/style.css
 var assets embed.FS
 
-// Handler serves only the preview shell and non-sensitive status endpoints.
-func Handler(ready func() bool) http.Handler {
+// Handler serves the static preview, status endpoints and optional authentication API.
+func Handler(ready func() bool, auth *Auth) http.Handler {
 	static, err := fs.Sub(assets, "static")
 	if err != nil {
 		panic(err)
@@ -40,6 +40,11 @@ func Handler(ready func() bool) http.Handler {
 		}
 		status(w, http.StatusOK, "ready")
 	})
+	if auth != nil {
+		mux.HandleFunc("GET /api/v1/session", auth.session)
+		mux.HandleFunc("POST /api/v1/session/login", auth.login)
+		mux.HandleFunc("POST /api/v1/session/logout", auth.logout)
+	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-store")
 		w.Header().Set("X-Content-Type-Options", "nosniff")
@@ -57,18 +62,29 @@ func status(w http.ResponseWriter, code int, value string) {
 
 // Run starts the development server and drains active requests on cancellation.
 func Run(ctx context.Context, cfg Config) error {
+	store, err := OpenStore(ctx, cfg.DataDir)
+	if err != nil {
+		return fmt.Errorf("initialize storage: %w", err)
+	}
+	defer store.Close()
+	auth := NewAuth(store, cfg.Origin)
+	if err := auth.close(ctx); err != nil {
+		return fmt.Errorf("expire old sessions: %w", err)
+	}
 	listener, err := net.Listen("tcp", cfg.Address)
 	if err != nil {
 		return fmt.Errorf("cannot open development listener: %w", err)
 	}
 	defer listener.Close()
-	return serve(ctx, listener)
+	return serve(ctx, listener, auth)
 }
 
-func serve(ctx context.Context, listener net.Listener) error {
+func serve(ctx context.Context, listener net.Listener, auth *Auth) error {
 	var ready atomic.Bool
 	srv := &http.Server{
-		Handler:           Handler(ready.Load),
+		Handler: Handler(func() bool {
+			return ready.Load() && (auth == nil || auth.store.Ready())
+		}, auth),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       10 * time.Second,
 		WriteTimeout:      10 * time.Second,

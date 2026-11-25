@@ -4,7 +4,7 @@ COPY go.mod go.sum ./
 RUN go mod download && go mod verify
 COPY cmd ./cmd
 COPY internal ./internal
-RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags="-s -w" -o /out/allmy-remote ./cmd/server
+RUN go mod tidy && CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags="-s -w" -o /out/allmy-remote ./cmd/server
 
 RUN mkdir -m 0700 /out/data
 

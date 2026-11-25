@@ -44,6 +44,7 @@ func Handler(ready func() bool, auth *Auth) http.Handler {
 		mux.HandleFunc("GET /api/v1/session", auth.session)
 		mux.HandleFunc("POST /api/v1/session/login", auth.login)
 		mux.HandleFunc("POST /api/v1/session/logout", auth.logout)
+		auth.devices.register(mux, auth)
 	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-store")
@@ -68,6 +69,7 @@ func Run(ctx context.Context, cfg Config) error {
 	}
 	defer store.Close()
 	auth := NewAuth(store, cfg.Origin)
+	defer auth.devices.Close()
 	if err := auth.close(ctx); err != nil {
 		return fmt.Errorf("expire old sessions: %w", err)
 	}
@@ -105,6 +107,9 @@ func serve(ctx context.Context, listener net.Listener, auth *Auth) error {
 		return err
 	case <-ctx.Done():
 		ready.Store(false)
+		if auth != nil {
+			auth.devices.Close()
+		}
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		if err := srv.Shutdown(shutdownCtx); err != nil {

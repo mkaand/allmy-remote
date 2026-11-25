@@ -2,7 +2,7 @@
 
 A lightweight, self-hosted remote desktop and device management platform, built from scratch. One platform. All your devices.
 
-**Status: Sprint 1B — local development preview.** The Go core includes a static shell, health/readiness, SQLite WAL storage and single-operator authentication API. No browser login UI, device enrollment, agent, remote access or production deployment is available. Features below remain planned.
+**Status: Sprint 1C — local development preview.** The Go core includes a static shell, health/readiness, SQLite WAL storage and single-operator authentication API. Adds a mock-only device registry, one-time enrollment and authenticated WebSocket heartbeat. No browser login UI, native agent, remote access or production deployment is available. Features below remain planned.
 
 ## Goals
 
@@ -53,6 +53,10 @@ The non-loopback container listener is explicitly enabled inside the image; neve
 ### Operator authentication API
 
 Initialize the single administrator before starting the service with `go run ./cmd/server init-admin`; supply a password (12–256 bytes) via protected standard input, never in command arguments or shell history. For local testing, use the default origin `http://localhost:8080`. The server requires an exact Origin header on login/logout and issues a Secure, HttpOnly, SameSite=Strict cookie. Use HTTPS or a localhost client supporting secure cookies. Endpoints: POST /api/v1/session/login (JSON username and password), GET /api/v1/session, POST /api/v1/session/logout. The username is admin; no default password. Each successful login revokes the previous session; sessions expire after 12 hours. Browser UI is deferred.
+
+### Device registry preview
+
+Authenticated operator endpoints: GET /api/v1/devices, POST /api/v1/enrollment/grants (JSON name), POST /api/v1/devices/{id}/revoke. Grants expire after five minutes and may be exchanged once via POST /api/v1/enrollment/exchange (JSON grant). The exchange returns a mock device ID and unique credential once; only credential hashes are stored. Native/mock clients use GET /api/v1/device/channel with an Authorization Bearer header, then version-1 JSON hello and heartbeat messages with IDs. Heartbeat interval is 15 seconds, offline timeout 45 seconds. All devices in this preview are explicitly labeled mock; no remote-control capability is granted. The preview is local only; production TLS, protected credential storage, user consent in the native agent, and remaining security gates are mandatory before remote access.
 
 ## License
 

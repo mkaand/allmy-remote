@@ -12,7 +12,7 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-const schemaVersion = 1
+const schemaVersion = 2
 
 type Store struct {
 	db *sql.DB
@@ -84,6 +84,17 @@ func (s *Store) initialize(ctx context.Context) error {
 			"CREATE TABLE operator_sessions (token_hash BLOB PRIMARY KEY NOT NULL, operator_id INTEGER NOT NULL REFERENCES operators(id) ON DELETE CASCADE, expires_at INTEGER NOT NULL)",
 			"CREATE INDEX operator_sessions_expiry ON operator_sessions(expires_at)",
 			"PRAGMA user_version=1",
+		} {
+			if _, err = tx.ExecContext(ctx, statement); err != nil {
+				return err
+			}
+		}
+		fallthrough
+	case 1:
+		for _, statement := range []string{
+			"CREATE TABLE enrollment_grants (token_hash BLOB PRIMARY KEY NOT NULL, name TEXT NOT NULL, expires_at INTEGER NOT NULL)",
+			"CREATE TABLE devices (id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL, credential_hash BLOB UNIQUE NOT NULL, created_at INTEGER NOT NULL, last_seen INTEGER, revoked_at INTEGER)",
+			"PRAGMA user_version=2",
 		} {
 			if _, err = tx.ExecContext(ctx, statement); err != nil {
 				return err

@@ -35,6 +35,7 @@ func passwordHash(password string, salt []byte) []byte {
 
 type Auth struct {
 	store  *Store
+	devices *DeviceRegistry
 	origin string
 	mu     sync.Mutex
 	start  time.Time
@@ -44,7 +45,7 @@ type Auth struct {
 }
 
 func NewAuth(store *Store, origin string) *Auth {
-	return &Auth{store: store, origin: origin, hash: make(chan struct{}, 1), now: time.Now}
+	return &Auth{store: store, devices: NewDeviceRegistry(store), origin: origin, hash: make(chan struct{}, 1), now: time.Now}
 }
 
 // A bounded global limiter is deliberate for the single-operator preview.

@@ -3,11 +3,11 @@ package main
 import (
 	"context"
 	"errors"
-	"log"
 	"io"
-	"strings"
+	"log"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	"github.com/mkaand/allmy-remote/internal/core"

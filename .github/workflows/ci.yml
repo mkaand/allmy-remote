@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  core:
+    name: Core checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16
+        with:
+          go-version: '1.26.11'
+          cache: false
+      - name: Formatting
+        run: test -z "$(gofmt -l cmd internal)"
+      - name: Vet
+        run: go vet ./...
+      - name: Tests
+        run: go test -race ./...
+      - name: Static binary
+        run: CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /tmp/allmy-remote ./cmd/server
+      - name: Container build
+        run: docker build -t allmy-remote:ci .
+      - name: Container smoke test
+        run: |
+          set -eu
+          trap 'docker rm -f allmy-remote-ci >/dev/null 2>&1 || true' EXIT
+          docker run -d --name allmy-remote-ci --read-only --cap-drop ALL --security-opt no-new-privileges -p 127.0.0.1:18080:8080 allmy-remote:ci
+          curl --fail --silent --show-error --retry 10 --retry-connrefused --retry-delay 1 http://127.0.0.1:18080/health | grep -F '"status":"ok"'
+          curl --fail --silent --show-error http://127.0.0.1:18080/ready | grep -F '"status":"ready"'
+          curl --fail --silent --show-error http://127.0.0.1:18080/ | grep -F 'Development preview'
+          docker stop -t 10 allmy-remote-ci
+          test "$(docker inspect -f '{{.State.ExitCode}}' allmy-remote-ci)" = 0

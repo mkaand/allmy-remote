@@ -2,7 +2,7 @@
 
 A lightweight, self-hosted remote desktop and device management platform, built from scratch. One platform. All your devices.
 
-**Status: Sprint 0 — technical design baseline.** No agent, server, installer, or production deployment is available yet. Features below are planned, not implemented.
+**Status: Sprint 1A — local development preview.** The Go core provides a static responsive shell, health/readiness endpoints, validated listener configuration and graceful shutdown. No authentication, device enrollment, agent, remote access, or production deployment is available. Features below remain planned.
 
 ## Goals
 
@@ -31,7 +31,24 @@ See [architecture](docs/architecture.md), [technical specification](docs/specifi
 
 ## Installation
 
-Not available yet. No public-facing service should be deployed from this planning baseline.
+Local development only; do not expose this unauthenticated preview to the Internet.
+
+With Go 1.26.11:
+
+```sh
+go run ./cmd/server
+```
+
+Open http://127.0.0.1:8080. Status endpoints: /health and /ready. Run `go test -race ./...` for scoped checks.
+
+Container preview (loopback host binding only):
+
+```sh
+docker build -t allmy-remote:dev .
+docker run --rm --read-only --cap-drop ALL --security-opt no-new-privileges -p 127.0.0.1:8080:8080 allmy-remote:dev
+```
+
+The non-loopback container listener is explicitly enabled inside the image; never publish its port on a public interface. The embedded shell is intentionally plain HTML/CSS; React/TypeScript and theme controls will arrive in Sprint 1D. No external runtime dependencies for this core baseline.
 
 ## License
 

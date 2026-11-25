@@ -97,9 +97,9 @@ func TestDeviceRegistryLifecycle(t *testing.T) {
 	grant := createGrant()
 	request("POST", exchange, a.origin, exchangeBody(grant), nil, 403)
 	var issued struct {
-		ID string `json:"id"`
+		ID         string `json:"id"`
 		Credential string `json:"credential"`
-		Platform string `json:"platform"`
+		Platform   string `json:"platform"`
 	}
 	b := request("POST", exchange, "", exchangeBody(grant), nil, 201)
 	if err := json.Unmarshal(b, &issued); err != nil || issued.ID == "" || issued.Credential == "" || issued.Platform != "mock" {

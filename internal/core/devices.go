@@ -21,38 +21,38 @@ import (
 )
 
 const (
-	grantTTL = 5 * time.Minute
+	grantTTL          = 5 * time.Minute
 	heartbeatInterval = 15 * time.Second
-	offlineAfter = 45 * time.Second
-	maxDevices = 100
-	maxGrants = 20
+	offlineAfter      = 45 * time.Second
+	maxDevices        = 100
+	maxGrants         = 20
 )
 
 type DeviceRegistry struct {
-	store *Store
-	mu sync.Mutex
-	connections sync.WaitGroup
-	active map[string]*deviceConnection
-	ctx context.Context
-	cancel context.CancelFunc
-	now func() time.Time
+	store        *Store
+	mu           sync.Mutex
+	connections  sync.WaitGroup
+	active       map[string]*deviceConnection
+	ctx          context.Context
+	cancel       context.CancelFunc
+	now          func() time.Time
 	attemptStart time.Time
-	attempts int
+	attempts     int
 }
 
 type deviceConnection struct {
-	cancel context.CancelFunc
+	cancel   context.CancelFunc
 	lastSeen time.Time
 }
 
 func NewDeviceRegistry(store *Store) *DeviceRegistry {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &DeviceRegistry{
-		store: store,
+		store:  store,
 		active: make(map[string]*deviceConnection),
-		ctx: ctx,
+		ctx:    ctx,
 		cancel: cancel,
-		now: time.Now,
+		now:    time.Now,
 	}
 }
 
@@ -279,10 +279,10 @@ func (d *DeviceRegistry) exchange(w http.ResponseWriter, r *http.Request) {
 }
 
 type deviceView struct {
-	ID string `json:"id"`
-	Name string `json:"name"`
+	ID       string `json:"id"`
+	Name     string `json:"name"`
 	Platform string `json:"platform"`
-	Status string `json:"status"`
+	Status   string `json:"status"`
 	LastSeen *int64 `json:"last_seen"`
 }
 
@@ -362,11 +362,11 @@ func (d *DeviceRegistry) revokeDevice(ctx context.Context, id string) (bool, err
 }
 
 type controlMessage struct {
-	Version int `json:"version"`
-	Type string `json:"type"`
-	ID string `json:"id"`
-	CorrelationID string `json:"correlation_id,omitempty"`
-	Payload json.RawMessage `json:"payload,omitempty"`
+	Version       int             `json:"version"`
+	Type          string          `json:"type"`
+	ID            string          `json:"id"`
+	CorrelationID string          `json:"correlation_id,omitempty"`
+	Payload       json.RawMessage `json:"payload,omitempty"`
 }
 
 func parseControl(data []byte, expected string) (controlMessage, bool) {

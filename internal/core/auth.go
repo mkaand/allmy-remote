@@ -34,14 +34,14 @@ func passwordHash(password string, salt []byte) []byte {
 }
 
 type Auth struct {
-	store  *Store
+	store   *Store
 	devices *DeviceRegistry
-	origin string
-	mu     sync.Mutex
-	start  time.Time
-	count  int
-	hash   chan struct{}
-	now    func() time.Time
+	origin  string
+	mu      sync.Mutex
+	start   time.Time
+	count   int
+	hash    chan struct{}
+	now     func() time.Time
 }
 
 func NewAuth(store *Store, origin string) *Auth {

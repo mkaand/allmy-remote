@@ -2,7 +2,7 @@
 
 A lightweight, self-hosted remote desktop and device management platform, built from scratch. One platform. All your devices.
 
-**Status: Sprint 1C — local development preview.** The Go core includes a static shell, health/readiness, SQLite WAL storage and single-operator authentication API. Adds a mock-only device registry, one-time enrollment and authenticated WebSocket heartbeat. No browser login UI, native agent, remote access or production deployment is available. Features below remain planned.
+**Status: Sprint 1D — local development preview.** The Go core includes an embedded React/TypeScript dashboard, health/readiness, SQLite WAL storage and single-operator authentication API. Adds a mock-only device registry, one-time enrollment and authenticated WebSocket heartbeat. Includes browser sign-in/out, device cards, enrollment grants, revoke action and persistent system/light/dark theme. No native agent, remote access or production deployment is available. Features below remain planned.
 
 ## Goals
 
@@ -33,9 +33,14 @@ See [architecture](docs/architecture.md), [technical specification](docs/specifi
 
 Local development only; do not expose this preview to the Internet. Production MFA and additional security gates are pending.
 
-With Go 1.26.11:
+With Go 1.26.11 and Node 24.22.3:
 
 ```sh
+cd web
+npm ci --ignore-scripts
+npm run typecheck
+npm run build
+cd ..
 go run ./cmd/server
 ```
 
@@ -48,15 +53,19 @@ docker build -t allmy-remote:dev .
 docker run --rm --read-only --tmpfs /data:rw,noexec,nosuid,size=16m,uid=65532,gid=65532,mode=0700 --cap-drop ALL --security-opt no-new-privileges -p 127.0.0.1:8080:8080 allmy-remote:dev
 ```
 
-The non-loopback container listener is explicitly enabled inside the image; never publish its port on a public interface. The embedded shell is intentionally plain HTML/CSS; React/TypeScript and theme controls will arrive in Sprint 1D. SQLite uses a CGO-free driver and Argon2id uses a maintained Go library. The container example uses ephemeral data; persistent storage requires a private directory or volume owned by UID 65532.
+The non-loopback container listener is explicitly enabled inside the image; never publish its port on a public interface. The React/TypeScript dashboard is built once and embedded into the Go executable. Node is build-time only; no separate frontend runtime is required. SQLite uses a CGO-free driver and Argon2id uses a maintained Go library. The container example uses ephemeral data; persistent storage requires a private directory or volume owned by UID 65532.
 
 ### Operator authentication API
 
-Initialize the single administrator before starting the service with `go run ./cmd/server init-admin`; supply a password (12–256 bytes) via protected standard input, never in command arguments or shell history. For local testing, use the default origin `http://localhost:8080`. The server requires an exact Origin header on login/logout and issues a Secure, HttpOnly, SameSite=Strict cookie. Use HTTPS or a localhost client supporting secure cookies. Endpoints: POST /api/v1/session/login (JSON username and password), GET /api/v1/session, POST /api/v1/session/logout. The username is admin; no default password. Each successful login revokes the previous session; sessions expire after 12 hours. Browser UI is deferred.
+Initialize the single administrator before starting the service with `go run ./cmd/server init-admin`; supply a password (12–256 bytes) via protected standard input, never in command arguments or shell history. For local testing, use the default origin `http://localhost:8080`. The server requires an exact Origin header on login/logout and issues a Secure, HttpOnly, SameSite=Strict cookie. Use HTTPS or a localhost client supporting secure cookies. Endpoints: POST /api/v1/session/login (JSON username and password), GET /api/v1/session, POST /api/v1/session/logout. The username is admin; no default password. Each successful login revokes the previous session; sessions expire after 12 hours. The dashboard uses the same API. No session token is stored in local storage; only the appearance preference is persisted.
 
 ### Device registry preview
 
 Authenticated operator endpoints: GET /api/v1/devices, POST /api/v1/enrollment/grants (JSON name), POST /api/v1/devices/{id}/revoke. Grants expire after five minutes and may be exchanged once via POST /api/v1/enrollment/exchange (JSON grant). The exchange returns a mock device ID and unique credential once; only credential hashes are stored. Native/mock clients use GET /api/v1/device/channel with an Authorization Bearer header, then version-1 JSON hello and heartbeat messages with IDs. Heartbeat interval is 15 seconds, offline timeout 45 seconds. All devices in this preview are explicitly labeled mock; no remote-control capability is granted. The preview is local only; production TLS, protected credential storage, user consent in the native agent, and remaining security gates are mandatory before remote access.
+
+### Dashboard preview
+
+The dashboard lists real registry data, explicitly labels mock devices, refreshes while visible and never invents telemetry. Generate a one-time grant, transfer it only to an authorized mock client, refresh the registry, and revoke a device when needed. Native remote desktop, files, terminal and clipboard remain disabled. Browser acceptance runs against the compiled binary in CI. The standalone AllMyThemeControls component supports system, light and dark; exact parity with external private shared source has not been verified.
 
 ## License
 

@@ -14,10 +14,10 @@ import (
 	"time"
 )
 
-//go:embed static/index.html static/style.css
+//go:embed static/index.html static/style.css static/app.js
 var assets embed.FS
 
-// Handler serves the static preview, status endpoints and optional authentication API.
+// Handler serves the embedded dashboard, status endpoints and optional authentication API.
 func Handler(ready func() bool, auth *Auth) http.Handler {
 	static, err := fs.Sub(assets, "static")
 	if err != nil {
@@ -29,6 +29,10 @@ func Handler(ready func() bool, auth *Auth) http.Handler {
 	})
 	mux.HandleFunc("GET /style.css", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFileFS(w, r, static, "style.css")
+	})
+	mux.HandleFunc("GET /app.js", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/javascript; charset=utf-8")
+		http.ServeFileFS(w, r, static, "app.js")
 	})
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, _ *http.Request) {
 		status(w, http.StatusOK, "ok")
@@ -50,7 +54,7 @@ func Handler(ready func() bool, auth *Auth) http.Handler {
 		w.Header().Set("Cache-Control", "no-store")
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("Referrer-Policy", "no-referrer")
-		w.Header().Set("Content-Security-Policy", "default-src 'none'; style-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'")
+		w.Header().Set("Content-Security-Policy", "default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'")
 		mux.ServeHTTP(w, r)
 	})
 }

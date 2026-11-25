@@ -20,6 +20,7 @@ func TestRoutes(t *testing.T) {
 	}{
 		{"GET", "/", true, 200, "AllMy Remote"},
 		{"GET", "/style.css", true, 200, "color-scheme"},
+		{"GET", "/app.js", true, 200, "AllMy Remote"},
 		{"GET", "/health", false, 200, "\"ok\""},
 		{"GET", "/ready", true, 200, "\"ready\""},
 		{"GET", "/ready", false, 503, "\"not_ready\""},

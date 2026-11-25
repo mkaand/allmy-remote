@@ -6,3 +6,10 @@
 !internal/
 !internal/**
 !Dockerfile
+!web/
+!web/package.json
+!web/package-lock.json
+!web/tsconfig.json
+!web/src/
+!web/src/**
+internal/core/static/app.js

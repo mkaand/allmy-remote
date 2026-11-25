@@ -10,3 +10,7 @@ Design target: clear, compact, responsive, accessible dashboard. No real device 
 - Responsive grid, consistent spacing and corner radius, keyboard navigation, visible focus, appropriate touch targets, reduced-motion support, readable contrast.
 - Keep UI lightweight; no large animation libraries or unnecessary polling. Prefer event updates with bounded refresh. The first dashboard should be functional before ornamental.
 - English UI first; externalize strings for later localization. Theme controls use a reusable interface without publishing private shared-source paths or dependencies.
+
+## Sprint 1D implementation
+
+React/TypeScript, bundled with esbuild and embedded in the Go binary. Standalone AllMyThemeControls component with persisted appearance preference; private shared-source parity remains to be checked. Poll every 10 seconds only while visible, refresh on demand, label stale data after errors, never store session or enrollment secrets in local storage. No remote-control actions until implemented.

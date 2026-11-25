@@ -1,0 +1,22 @@
+{
+  "name": "allmy-remote-web",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build": "esbuild src/main.tsx --bundle --minify --target=es2022 --outfile=../internal/core/static/app.js --legal-comments=eof",
+    "test": "node --test test/dashboard.test.mjs"
+  },
+  "dependencies": {
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "esbuild": "0.28.2",
+    "typescript": "5.9.3",
+    "playwright": "1.65.1"
+  }
+}

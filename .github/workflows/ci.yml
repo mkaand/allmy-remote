@@ -17,7 +17,7 @@ jobs:
   core:
     name: Core checks
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
@@ -26,6 +26,21 @@ jobs:
         with:
           go-version: '1.26.11'
           cache: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: '24.22.3'
+      - name: Resolve web dependency lock
+        working-directory: web
+        run: |
+          npm install --ignore-scripts --no-audit --no-fund
+          echo BEGIN_NPM_LOCK
+          cat package-lock.json
+          echo END_NPM_LOCK
+      - name: Web typecheck and build
+        working-directory: web
+        run: |
+          npm run typecheck
+          npm run build
       - name: Dependency integrity
         run: |
           go mod tidy
@@ -39,6 +54,13 @@ jobs:
         run: go test -mod=readonly -race ./...
       - name: Static binary
         run: CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags="-s -w" -o /tmp/allmy-remote ./cmd/server
+      - name: Browser acceptance
+        working-directory: web
+        env:
+          ALLMY_TEST_BINARY: /tmp/allmy-remote
+        run: |
+          npx --no-install playwright install --with-deps chromium
+          npm test
       - name: Container build
         run: docker build -t allmy-remote:ci .
       - name: Container smoke test
@@ -49,5 +71,7 @@ jobs:
           curl --fail --silent --show-error --retry 10 --retry-connrefused --retry-delay 1 http://127.0.0.1:18080/health | grep -F '"status":"ok"'
           curl --fail --silent --show-error http://127.0.0.1:18080/ready | grep -F '"status":"ready"'
           curl --fail --silent --show-error http://127.0.0.1:18080/ | grep -F 'Development preview'
+          curl --fail --silent --show-error http://127.0.0.1:18080/app.js > /tmp/allmy-web.js
+          test -s /tmp/allmy-web.js
           docker stop -t 10 allmy-remote-ci
           test "$(docker inspect -f '{{.State.ExitCode}}' allmy-remote-ci)" = 0

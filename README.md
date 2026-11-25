@@ -2,7 +2,7 @@
 
 A lightweight, self-hosted remote desktop and device management platform, built from scratch. One platform. All your devices.
 
-**Status: Sprint 0 — architecture only.** No agent, server, installer, or production deployment is available yet. Features below are planned, not implemented.
+**Status: Sprint 0 — technical design baseline.** No agent, server, installer, or production deployment is available yet. Features below are planned, not implemented.
 
 ## Goals
 
@@ -25,9 +25,9 @@ A lightweight, self-hosted remote desktop and device management platform, built 
 
 ## Architecture
 
-Candidate stack: Go server and agents, React/TypeScript web client, SQLite WAL. Native operating system APIs and maintained protocol/codec libraries are allowed; existing remote desktop applications are not used as the project foundation.
+Baseline stack: Go server and agents, React/TypeScript web client, SQLite WAL. Native operating system APIs and maintained protocol/codec libraries are allowed; existing remote desktop applications are not used as the project foundation.
 
-See [architecture](docs/architecture.md), [security](SECURITY.md), and [roadmap](docs/roadmap.md).
+See [architecture](docs/architecture.md), [technical specification](docs/specification.md), [threat model](docs/threat-model.md), [acceptance criteria](docs/acceptance.md), [UI guidelines](docs/ui.md), [security](SECURITY.md), and [roadmap](docs/roadmap.md).
 
 ## Installation
 

@@ -1,6 +1,6 @@
 # Architecture — Sprint 0
 
-Status: design baseline; implementation choices remain subject to profiling and platform tests.
+Status: Sprint 0 design baseline. See [technical specification](specification.md) for implementation contracts; performance and platform choices remain subject to profiling.
 
 ## Components
 

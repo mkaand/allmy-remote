@@ -2,8 +2,8 @@
 
 | Sprint | Deliverable | Status |
 | --- | --- | --- |
-| 0 | Architecture, threat model requirements, repository bootstrap | In progress |
-| 1 | Core, web dashboard skeleton, authenticated device enrollment | Planned |
+| 0 | Architecture, threat model, technical specification, repository bootstrap | Design baseline complete |
+| 1 | Core, web dashboard skeleton, authenticated device enrollment | Next |
 | 2 | Windows agent and telemetry | Planned |
 | 3 | Windows view-only desktop, then authorized input | Planned |
 | 4 | Universal clipboard: text first, then richer formats | Planned |

@@ -26,3 +26,7 @@ Measure idle for at least 5 minutes after warmup, CPU as process CPU seconds / w
 - Manual acceptance: operator signs in, sees clearly labeled mock device, verifies online/offline and revoke, checks mobile/desktop theme. Real Windows agent acceptance follows in Sprint 2.
 
 Each change gets focused tests and a concise manual checklist when there is a user-facing feature. Avoid repetitive unrelated testing. A public stable release requires actual device acceptance and security gates.
+
+## Isolated deployment candidate
+
+Automated gates include a persistent Compose fixture (container removal/recreation, admin login, revoked-device state, loopback binding and runtime restrictions), and Chromium/WebKit browser checks via test-only loopback HTTPS. WebKit automation is not an actual iPhone Safari test. Follow [manual deployment acceptance](deployment-preview.md) after deploying to an approved isolated host. Only mark Sprint 1 accepted after these manual checks and recorded resource measurements; production remains blocked.

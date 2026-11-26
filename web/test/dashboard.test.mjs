@@ -3,18 +3,23 @@ import assert from "node:assert/strict";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { spawn } from "node:child_process";
+import { spawn, execFileSync } from "node:child_process";
+import { createServer as createHTTPS } from "node:https";
+import { request as requestHTTP } from "node:http";
+import { readFile } from "node:fs/promises";
 import { once } from "node:events";
-import { chromium } from "playwright";
+import { chromium, webkit } from "playwright";
 
-test("dashboard authentication, themes, enrollment and revocation", { timeout: 60000 }, async () => {
+for (const [engine, browserType] of [["Chromium", chromium], ["WebKit", webkit]]) {
+test(engine + ": dashboard authentication, themes, enrollment and revocation", { timeout: 90000 }, async () => {
   const binary = process.env.ALLMY_TEST_BINARY;
   assert.ok(binary, "ALLMY_TEST_BINARY required");
   const dir = await mkdtemp(join(tmpdir(), "allmy-ui-"));
-  const origin = "http://127.0.0.1:18888";
+  const backend = "http://127.0.0.1:18888";
+  const origin = "https://127.0.0.1:18889";
   const env = { ...process.env, ALLMY_DATA_DIR: join(dir, "data"), ALLMY_LISTEN: "127.0.0.1:18888", ALLMY_ORIGIN: origin };
   const password = "test-only-password-long";
-  let server, browser;
+  let server, browser, proxy;
   try {
     const init = spawn(binary, ["init-admin"], { env, stdio: ["pipe", "ignore", "ignore"] });
     const initialized = once(init, "exit");
@@ -23,12 +28,27 @@ test("dashboard authentication, themes, enrollment and revocation", { timeout: 6
     server = spawn(binary, [], { env, stdio: "ignore" });
     let ready = false;
     for (let i = 0; i < 100; i++) {
-      try { if ((await fetch(origin + "/ready")).ok) { ready = true; break; } } catch {}
+      try { if ((await fetch(backend + "/ready")).ok) { ready = true; break; } } catch {}
       await new Promise(resolve => setTimeout(resolve, 100));
     }
     assert.ok(ready, "server did not start");
-    browser = await chromium.launch({ headless: true });
-    const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+    // Ephemeral loopback HTTPS only for the browser test. Never ship this certificate.
+    const key = join(dir, "test.key");
+    const cert = join(dir, "test.pem");
+    execFileSync("openssl", ["req", "-x509", "-newkey", "rsa:2048", "-nodes", "-days", "1",
+      "-subj", "/CN=localhost", "-keyout", key, "-out", cert], { stdio: "ignore" });
+    proxy = createHTTPS({ key: await readFile(key), cert: await readFile(cert) }, (req, res) => {
+      const upstream = requestHTTP(backend + req.url, { method: req.method, headers: req.headers }, response => {
+        res.writeHead(response.statusCode, response.headers);
+        response.pipe(res);
+      });
+      upstream.on("error", () => { if (!res.headersSent) res.writeHead(502); res.end(); });
+      req.pipe(upstream);
+    });
+    proxy.listen(18889, "127.0.0.1");
+    await once(proxy, "listening");
+    browser = await browserType.launch({ headless: true });
+    const page = await browser.newPage({ viewport: { width: 1280, height: 800 }, ignoreHTTPSErrors: true });
     const errors = [];
     page.on("pageerror", error => errors.push(error.message));
     await page.goto(origin);
@@ -67,7 +87,7 @@ test("dashboard authentication, themes, enrollment and revocation", { timeout: 6
     await grantInput.waitFor();
     const grant = await grantInput.inputValue();
     assert.equal(grant.length, 43);
-    const enrolled = await fetch(origin + "/api/v1/enrollment/exchange", {
+    const enrolled = await fetch(backend + "/api/v1/enrollment/exchange", {
       method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ grant })
     });
     assert.equal(enrolled.status, 201);
@@ -90,6 +110,10 @@ test("dashboard authentication, themes, enrollment and revocation", { timeout: 6
     assert.deepEqual(errors, []);
   } finally {
     if (browser) await browser.close();
+    if (proxy) {
+      proxy.closeAllConnections();
+      await new Promise(resolve => proxy.close(resolve));
+    }
     if (server && server.exitCode === null) {
       const exited = once(server, "exit");
       server.kill("SIGTERM");
@@ -98,3 +122,4 @@ test("dashboard authentication, themes, enrollment and revocation", { timeout: 6
     await rm(dir, { recursive: true, force: true });
   }
 });
+}

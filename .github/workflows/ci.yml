@@ -17,7 +17,7 @@ jobs:
   core:
     name: Core checks
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
@@ -57,7 +57,7 @@ jobs:
         env:
           ALLMY_TEST_BINARY: /tmp/allmy-remote
         run: |
-          npx --no-install playwright install --with-deps chromium
+          npx --no-install playwright install --with-deps chromium webkit
           npm test
       - name: Container build
         run: docker build -t allmy-remote:ci .
@@ -73,3 +73,7 @@ jobs:
           test -s /tmp/allmy-web.js
           docker stop -t 10 allmy-remote-ci
           test "$(docker inspect -f '{{.State.ExitCode}}' allmy-remote-ci)" = 0
+      - name: Compose persistence acceptance
+        run: |
+          docker tag allmy-remote:ci allmy-remote:preview
+          python3 tests/preview_persistence.py

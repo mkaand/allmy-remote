@@ -255,7 +255,7 @@ function App() {
     {state === "unavailable" && <section className="panel"><p role="alert">Server unavailable.</p><button onClick={() => void checkSession()}>Retry</button></section>}
     {state === "signed-out" && <Login onLogin={signedIn} />}
     {state === "signed-in" && <Dashboard onUnauthorized={unauthorized} />}
-    <footer>AllMy Remote · Sprint 1D · Development preview</footer>
+    <footer>AllMy Remote · Sprint 1E · Development preview</footer>
   </main>;
 }
 

@@ -2,7 +2,7 @@
 
 A lightweight, self-hosted remote desktop and device management platform, built from scratch. One platform. All your devices.
 
-**Status: Sprint 1D — local development preview.** The Go core includes an embedded React/TypeScript dashboard, health/readiness, SQLite WAL storage and single-operator authentication API. Adds a mock-only device registry, one-time enrollment and authenticated WebSocket heartbeat. Includes browser sign-in/out, device cards, enrollment grants, revoke action and persistent system/light/dark theme. No native agent, remote access or production deployment is available. Features below remain planned.
+**Status: Sprint 1E — isolated deployment candidate.** The Go core includes an embedded React/TypeScript dashboard, health/readiness, SQLite WAL storage and single-operator authentication API. Adds a mock-only device registry, one-time enrollment and authenticated WebSocket heartbeat. Includes browser sign-in/out, device cards, enrollment grants, revoke action and persistent system/light/dark theme. Includes a loopback-only persistent Compose preview. No native agent, remote access or production deployment is available. Features below remain planned.
 
 ## Goals
 
@@ -55,6 +55,8 @@ docker run --rm --read-only --tmpfs /data:rw,noexec,nosuid,size=16m,uid=65532,gi
 
 The non-loopback container listener is explicitly enabled inside the image; never publish its port on a public interface. The React/TypeScript dashboard is built once and embedded into the Go executable. Node is build-time only; no separate frontend runtime is required. SQLite uses a CGO-free driver and Argon2id uses a maintained Go library. The container example uses ephemeral data; persistent storage requires a private directory or volume owned by UID 65532.
 
+For a persistent, isolated Linux development deployment, follow [the preview deployment guide](docs/deployment-preview.md). The Compose profile binds only to loopback, uses its own named volume and never enables remote access. Manual deployment acceptance is required.
+
 ### Operator authentication API
 
 Initialize the single administrator before starting the service with `go run ./cmd/server init-admin`; supply a password (12–256 bytes) via protected standard input, never in command arguments or shell history. For local testing, use the default origin `http://localhost:8080`. The server requires an exact Origin header on login/logout and issues a Secure, HttpOnly, SameSite=Strict cookie. Use HTTPS or a localhost client supporting secure cookies. Endpoints: POST /api/v1/session/login (JSON username and password), GET /api/v1/session, POST /api/v1/session/logout. The username is admin; no default password. Each successful login revokes the previous session; sessions expire after 12 hours. The dashboard uses the same API. No session token is stored in local storage; only the appearance preference is persisted.
@@ -65,7 +67,7 @@ Authenticated operator endpoints: GET /api/v1/devices, POST /api/v1/enrollment/g
 
 ### Dashboard preview
 
-The dashboard lists real registry data, explicitly labels mock devices, refreshes while visible and never invents telemetry. Generate a one-time grant, transfer it only to an authorized mock client, refresh the registry, and revoke a device when needed. Native remote desktop, files, terminal and clipboard remain disabled. Browser acceptance runs against the compiled binary in CI. The AllMy Theme Controls switch and Auto button reuse the React component and CSS from the existing AllMy project implementation; the adapter is tailored to this app without Ant Design. The canonical preference key is allmy-theme.
+The dashboard lists real registry data, explicitly labels mock devices, refreshes while visible and never invents telemetry. Generate a one-time grant, transfer it only to an authorized mock client, refresh the registry, and revoke a device when needed. Native remote desktop, files, terminal and clipboard remain disabled. Chromium and WebKit browser acceptance run against the compiled binary in CI using an ephemeral loopback HTTPS test proxy. A disposable Compose fixture checks persistent state after container replacement. These do not replace real-device or real-server acceptance. The AllMy Theme Controls switch and Auto button reuse the React component and CSS from the existing AllMy project implementation; the adapter is tailored to this app without Ant Design. The canonical preference key is allmy-theme.
 
 ## License
 

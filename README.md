@@ -53,7 +53,7 @@ docker build -t allmy-remote:dev .
 docker run --rm --read-only --tmpfs /data:rw,noexec,nosuid,size=16m,uid=65532,gid=65532,mode=0700 --cap-drop ALL --security-opt no-new-privileges -p 127.0.0.1:8080:8080 allmy-remote:dev
 ```
 
-The non-loopback container listener is explicitly enabled inside the image; never publish its port on a public interface. The React/TypeScript dashboard is built once and embedded into the Go executable. Node is build-time only; no separate frontend runtime is required. SQLite uses a CGO-free driver and Argon2id uses a maintained Go library. The container example uses ephemeral data; persistent storage requires a private directory or volume owned by UID 65532.
+The non-loopback container listener is explicitly enabled inside the image; never publish its port on a public interface. The React/TypeScript dashboard is built once and embedded into the Go executable. Node is build-time only; no separate frontend runtime is required. SQLite uses a CGO-free driver and Argon2id uses a maintained Go library. The container example uses ephemeral data; persistent storage uses a named volume at /data with a private /data/state child directory owned by UID 65532. Existing experimental data at the volume root requires a separately reviewed migration.
 
 For a persistent, isolated Linux development deployment, follow [the preview deployment guide](docs/deployment-preview.md). The Compose profile binds only to loopback, uses its own named volume and never enables remote access. Manual deployment acceptance is required.
 

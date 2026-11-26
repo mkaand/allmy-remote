@@ -15,12 +15,16 @@ COPY internal ./internal
 COPY --from=web /src/internal/core/static/app.js ./internal/core/static/app.js
 RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags="-s -w" -o /out/allmy-remote ./cmd/server
 
-RUN mkdir -m 0700 /out/data && touch /out/data/.volume-init && chmod 0600 /out/data/.volume-init
+# The volume root may be created with Docker's default permissions.
+# Seed a private child directory: COPY preserves child metadata, not the
+# destination directory's metadata.
+RUN mkdir -m 0755 /out/data && mkdir -m 0700 /out/data/state && \
+    touch /out/data/state/.volume-init && chmod 0600 /out/data/state/.volume-init
 
 FROM scratch
 COPY --from=build /out/allmy-remote /allmy-remote
-COPY --from=build --chown=65532:65532 --chmod=0700 /out/data /data
+COPY --from=build --chown=65532:65532 /out/data/ /data/
 USER 65532:65532
-ENV ALLMY_LISTEN=0.0.0.0:8080 ALLMY_ALLOW_NON_LOOPBACK=true ALLMY_DATA_DIR=/data
+ENV ALLMY_LISTEN=0.0.0.0:8080 ALLMY_ALLOW_NON_LOOPBACK=true ALLMY_DATA_DIR=/data/state
 EXPOSE 8080
 ENTRYPOINT ["/allmy-remote"]

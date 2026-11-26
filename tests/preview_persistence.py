@@ -82,6 +82,7 @@ def inspect_container():
     assert host["ReadonlyRootfs"]
     assert "ALL" in host["CapDrop"]
     assert obj["Config"]["User"] == "65532:65532"
+    assert "ALLMY_DATA_DIR=/data/state" in obj["Config"]["Env"]
     assert any(x["Type"] == "volume" and x["Destination"] == "/data" for x in obj["Mounts"])
     return cid
 

@@ -9,6 +9,7 @@ services:
     ports:
       - "127.0.0.1:${ALLMY_PREVIEW_PORT:-18080}:8080"
     environment:
+      ALLMY_DATA_DIR: /data/state
       ALLMY_ORIGIN: "http://localhost:${ALLMY_PREVIEW_PORT:-18080}"
     volumes:
       - preview-data:/data

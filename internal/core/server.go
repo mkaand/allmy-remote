@@ -14,7 +14,7 @@ import (
 	"time"
 )
 
-//go:embed static/index.html static/style.css static/app.js
+//go:embed static/index.html static/style.css static/app.js static/allmy-theme-init.js static/allmy-theme-controls.css
 var assets embed.FS
 
 // Handler serves the embedded dashboard, status endpoints and optional authentication API.
@@ -33,6 +33,13 @@ func Handler(ready func() bool, auth *Auth) http.Handler {
 	mux.HandleFunc("GET /app.js", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/javascript; charset=utf-8")
 		http.ServeFileFS(w, r, static, "app.js")
+	})
+	mux.HandleFunc("GET /allmy-theme-init.js", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/javascript; charset=utf-8")
+		http.ServeFileFS(w, r, static, "allmy-theme-init.js")
+	})
+	mux.HandleFunc("GET /allmy-theme-controls.css", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFileFS(w, r, static, "allmy-theme-controls.css")
 	})
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, _ *http.Request) {
 		status(w, http.StatusOK, "ok")

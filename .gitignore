@@ -24,5 +24,4 @@
 *.local.yml
 
 /internal/core/static/app.js
-/web/node_modules/
 /web/test-results/

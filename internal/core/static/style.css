@@ -11,7 +11,7 @@
   --error: #fca5a5; --online: #4ade80; --offline: #94a3b8; --hover: #27354a;
 }
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme]), :root[data-theme="system"] {
+  :root:not([data-theme]) {
     color-scheme: dark;
     --bg: #10151e; --card: #1b2432; --text: #e2e8f0; --muted: #94a3b8; --border: #334155;
     --accent: #60a5fa; --primary: #60a5fa; --primary-text: #10151e; --warn: #fbbf24;
@@ -31,9 +31,6 @@ p { margin: .2rem 0; color: var(--muted); }
 .topbar, .section-head { justify-content: space-between; flex-wrap: wrap; }
 .header-actions, .actions { display: flex; flex-wrap: wrap; gap: .4rem; }
 .mark, .device-icon { display: grid; place-items: center; flex: none; color: var(--accent); font-weight: 800; background: var(--hover); border-radius: .75rem; width: 2.65rem; height: 2.65rem; font-size: 1.35rem; }
-.theme-controls { display: flex; padding: .2rem; margin: 0; gap: .15rem; border: 1px solid var(--border); border-radius: .75rem; min-width: 0; }
-.theme-controls button { border: 0; border-radius: .5rem; font-size: .8rem; min-height: 44px; padding: .3rem .55rem; }
-.theme-controls button[aria-pressed="true"] { color: var(--primary-text); background: var(--primary); }
 button, input { font: inherit; color: var(--text); border: 1px solid var(--border); background: var(--card); border-radius: .55rem; min-height: 44px; }
 button { cursor: pointer; padding: .5rem .85rem; font-size: .86rem; font-weight: 600; }
 button:hover:not(:disabled) { background: var(--hover); }

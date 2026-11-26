@@ -29,13 +29,11 @@ jobs:
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
         with:
           node-version: '24.22.3'
-      - name: Resolve web dependency lock
+      - name: Web dependency integrity
         working-directory: web
         run: |
-          npm install --ignore-scripts --no-audit --no-fund
-          echo BEGIN_NPM_LOCK
-          cat package-lock.json
-          echo END_NPM_LOCK
+          npm ci --ignore-scripts --no-audit --no-fund
+          git diff --exit-code -- package.json package-lock.json
       - name: Web typecheck and build
         working-directory: web
         run: |

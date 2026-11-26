@@ -1,7 +1,7 @@
 FROM node:24.22.3-bookworm-slim AS web
 WORKDIR /src/web
-COPY web/package.json ./
-RUN npm install --ignore-scripts --no-audit --no-fund
+COPY web/package.json web/package-lock.json ./
+RUN npm ci --ignore-scripts --no-audit --no-fund
 COPY web/tsconfig.json ./
 COPY web/src ./src
 RUN npm run typecheck && npm run build

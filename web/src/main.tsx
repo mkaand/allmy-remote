@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { createRoot } from "react-dom/client";
 import { api, APIError, message, type Device, type Grant } from "./api";
-import { AllMyThemeControls } from "./theme";
+import { AllMyThemeControls } from "./AllMyThemeControls";
+import { useThemeAdapter } from "./theme";
 
 type SessionState = "checking" | "signed-out" | "signed-in" | "unavailable";
 
@@ -209,6 +210,7 @@ function Dashboard({ onUnauthorized }: {onUnauthorized: () => void}) {
 }
 
 function App() {
+  const theme = useThemeAdapter();
   const [state, setState] = useState<SessionState>("checking");
   const [logoutError, setLogoutError] = useState("");
   const [loggingOut, setLoggingOut] = useState(false);
@@ -243,7 +245,7 @@ function App() {
   return <main className="shell">
     <header className="topbar"><div className="brand"><span className="mark" aria-hidden="true">A</span><div>
       <p className="eyebrow">ALLMY REMOTE</p><p className="small">One platform. All your devices.</p>
-    </div></div><div className="header-actions"><AllMyThemeControls />
+    </div></div><div className="header-actions"><AllMyThemeControls adapter={theme} />
       {state === "signed-in" && <button onClick={() => void logout()} disabled={loggingOut}>Sign out</button>}</div></header>
     <div className="preview" role="note"><strong>Development preview</strong><span>Local testing only · Mock devices · Not production-ready</span></div>
     <div className="page-title"><h1>{state === "signed-in" ? "Dashboard" : "Welcome to AllMy Remote"}</h1>

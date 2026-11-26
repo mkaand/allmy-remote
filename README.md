@@ -65,7 +65,7 @@ Authenticated operator endpoints: GET /api/v1/devices, POST /api/v1/enrollment/g
 
 ### Dashboard preview
 
-The dashboard lists real registry data, explicitly labels mock devices, refreshes while visible and never invents telemetry. Generate a one-time grant, transfer it only to an authorized mock client, refresh the registry, and revoke a device when needed. Native remote desktop, files, terminal and clipboard remain disabled. Browser acceptance runs against the compiled binary in CI. The standalone AllMyThemeControls component supports system, light and dark; exact parity with external private shared source has not been verified.
+The dashboard lists real registry data, explicitly labels mock devices, refreshes while visible and never invents telemetry. Generate a one-time grant, transfer it only to an authorized mock client, refresh the registry, and revoke a device when needed. Native remote desktop, files, terminal and clipboard remain disabled. Browser acceptance runs against the compiled binary in CI. The AllMy Theme Controls switch and Auto button reuse the React component and CSS from the existing AllMy project implementation; the adapter is tailored to this app without Ant Design. The canonical preference key is allmy-theme.
 
 ## License
 

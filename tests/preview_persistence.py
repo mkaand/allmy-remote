@@ -18,10 +18,17 @@ COMPOSE = ["docker", "compose", "-p", PROJECT, "-f", "compose.preview.yml"]
 
 
 def run(*args, input_text=None):
-    return subprocess.run(
+    result = subprocess.run(
         [*COMPOSE, *args], env=ENV, input=input_text, text=True,
-        check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-    ).stdout.strip()
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=60,
+    )
+    if result.returncode:
+        # Do not print stdout or stdin; initializer secrets must never reach CI logs.
+        detail = result.stderr
+        if input_text:
+            detail = detail.replace(input_text.strip(), "[REDACTED]")
+        raise RuntimeError(f"Compose {args[0]} failed ({result.returncode}): {detail.strip()}")
+    return result.stdout.strip()
 
 
 def request(path, method="GET", body=None, cookie=None, origin=None, want=200):
@@ -81,7 +88,8 @@ def inspect_container():
 
 def main():
     password = secrets.token_urlsafe(24)
-    run("run", "--rm", "-T", "--no-deps", "server", "init-admin", input_text=password + "\n")
+    run("run", "--rm", "-T", "--interactive", "--no-deps", "server", "init-admin", input_text=password + "\n")
+    print("PASS: non-root administrator bootstrap in persistent volume", flush=True)
     run("up", "-d", "--no-build")
     ready()
     first = inspect_container()
@@ -95,7 +103,8 @@ def main():
     request("/api/v1/devices/" + device_id + "/revoke", "POST", cookie=cookie, origin=ORIGIN)
 
     run("stop", "server")
-    assert run("ps", "-q", "server") == ""
+    stopped = run("ps", "--status", "running", "-q", "server")
+    assert stopped == "", "Server did not stop"
     run("rm", "-f", "server")
     run("up", "-d", "--no-build")
     ready()

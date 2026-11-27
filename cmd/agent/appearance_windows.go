@@ -193,7 +193,7 @@ func (u *nativeUI) repaint() {
 
 func (u *nativeUI) rect(x, y, w, h int) uiRect {
 	s := func(n int) int32 { return int32(n * u.dpi / 96) }
-	return uiRect{s(x), s(y), s(x+w), s(y+h)}
+	return uiRect{s(x), s(y), s(x + w), s(y + h)}
 }
 
 func rounded(dc uintptr, r uiRect, radius int32, fill, border uint32) {

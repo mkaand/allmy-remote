@@ -45,7 +45,13 @@ jobs:
           git diff --exit-code -- go.mod go.sum
           go mod verify
       - name: Formatting
-        run: test -z "$(gofmt -l cmd internal)"
+        run: |
+          files="$(gofmt -l cmd internal)"
+          if [ -n "$files" ]; then
+            printf '%s\n' "$files"
+            gofmt -d cmd internal
+            exit 1
+          fi
       - name: Vet
         run: go vet -mod=readonly ./...
       - name: Tests

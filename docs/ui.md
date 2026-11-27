@@ -30,3 +30,5 @@ Native Windows GUI preview: standard Win32 controls and notification area, fixed
 ## Native GUI modernization
 
 Use the dashboard's blue-accent light/dark palette, Segoe UI Variable, card layout, native owner-draw buttons and visual switches. Light/Dark/Auto and minimize-to-tray preferences are stored in the current user's registry; Auto follows Windows application theme. The paired view hides the grant and edit controls; the local hostname is displayed until a future protocol conveys the dashboard name. Auto-Start remains opt-in and can be changed during a presence session. No browser engine or new runtime dependency.
+
+Native header polish: use the exact dashboard logo variants in the client header while retaining the square executable/title/tray icon. Rasterize the logo once per theme background using alpha-aware interpolation, and supersample the switch track and thumb against the actual control fill. Keep the current native interaction model and layout.

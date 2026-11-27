@@ -24,6 +24,8 @@ type appearanceUI struct {
 	mode, statusText                                               string
 	minimize                                                       bool
 	colors                                                         palette
+	logo                                                           raster
+	logoBackground                                                 uint32
 }
 
 type uiRect struct{ Left, Top, Right, Bottom int32 }
@@ -155,6 +157,15 @@ func (u *nativeUI) applyAppearance() {
 	p := &u.appearance
 	dark := p.mode == "dark" || (p.mode == "auto" && systemDark())
 	p.colors = themeColors(dark)
+	if p.logo.width == 0 || p.logoBackground != p.colors.bg {
+		data := lightLogo
+		if dark {
+			data = darkLogo
+		}
+		p.logo = logoRaster(data, 380*u.dpi/96, p.colors.bg)
+		p.logoBackground = p.colors.bg
+	}
+	showControl(p.title, p.logo.width == 0)
 	oldBG, oldCard := p.bgBrush, p.cardBrush
 	p.bgBrush, _, _ = gdi32.NewProc("CreateSolidBrush").Call(uintptr(p.colors.bg))
 	p.cardBrush, _, _ = gdi32.NewProc("CreateSolidBrush").Call(uintptr(p.colors.card))
@@ -224,7 +235,7 @@ func (u *nativeUI) paint() {
 		height = 226
 	}
 	rounded(dc, u.rect(20, 92, 456, height), int32(18*u.dpi/96), p.colors.card, p.colors.border)
-	user32.NewProc("DrawIconEx").Call(dc, uintptr(22*u.dpi/96), uintptr(20*u.dpi/96), u.icon, uintptr(44*u.dpi/96), uintptr(44*u.dpi/96), 0, 0, 3)
+	p.logo.draw(dc, int32((496*u.dpi/96-p.logo.width)/2), int32(8*u.dpi/96))
 	status := p.colors.muted
 	if strings.HasPrefix(p.statusText, "Connected;") {
 		status = p.colors.success
@@ -317,18 +328,12 @@ func (u *nativeUI) drawControl(ptr uintptr) bool {
 		sub := uiRect{name.Left, r.Top + s(28), name.Right, r.Bottom - s(3)}
 		drawLabel(d.DC, p.bodyFont, label, name, fg, 0x24)
 		drawLabel(d.DC, p.smallFont, detail, sub, c.muted, 0x24)
-		track := uiRect{r.Right - s(58), r.Top + s(14), r.Right - s(14), r.Top + s(38)}
+		track := uiRect{r.Right - s(58), r.Top + s(12), r.Right - s(14), r.Top + s(36)}
 		color := c.disabled
 		if on {
 			color = c.accent
 		}
-		rounded(d.DC, track, s(24), color, color)
-		x := track.Left + s(3)
-		if on {
-			x = track.Right - s(21)
-		}
-		knob := uiRect{x, track.Top + s(3), x + s(18), track.Bottom - s(3)}
-		rounded(d.DC, knob, s(18), rgb(255, 255, 255), rgb(255, 255, 255))
+		switchRaster(int(track.Right-track.Left), int(track.Bottom-track.Top), fill, color, on).draw(d.DC, track.Left, track.Top)
 	} else {
 		drawLabel(d.DC, p.bodyFont, label, r, fg, 0x25)
 	}

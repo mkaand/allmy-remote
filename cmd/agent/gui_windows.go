@@ -157,8 +157,8 @@ func (u *nativeUI) build() error {
 	const button = 0x0001000b // native keyboard-accessible owner-draw button
 	const edit = 0x00810080
 	p := &u.appearance
-	p.title = u.control("STATIC", "AllMy Remote", 0, 82, 17, 392, 34, 0)
-	p.subtitle = u.control("STATIC", "Windows Agent", 0, 82, 51, 392, 24, 0)
+	p.title = u.control("STATIC", "AllMy Remote", 1, 22, 20, 452, 38, 0)
+	p.subtitle = u.control("STATIC", "Windows Agent", 1, 22, 71, 452, 20, 0)
 	p.device = u.control("STATIC", "This Windows device", 0, 36, 112, 424, 30, 0)
 	u.status = u.control("STATIC", "Not connected", 0, 52, 147, 408, 42, 0)
 	p.serverLabel = u.control("STATIC", "HTTPS server", 0, 36, 194, 424, 22, 0)

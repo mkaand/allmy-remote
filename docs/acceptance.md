@@ -51,3 +51,7 @@ Stop the old console process without unpairing. Extract the two unsigned preview
 ## Native GUI modernization acceptance
 
 Inspect the paired and unpaired layouts, light/dark/auto colors, readable typography, keyboard focus, standard and high-DPI display, theme persistence, tray preference persistence, and toggle Auto-Start while connected. Verify unchanged DPAPI enrollment, tray open/close, connection/reconnect and Exit. Re-measure idle CPU and working set. CI checks palette selection but does not establish actual visual quality or Windows interaction.
+
+## Native GUI polish acceptance
+
+Verify the wide dashboard logo in both themes, transparent background and proportional DPI scaling. Inspect on/off switch edges at 100%, 125% or 150% scaling, and verify Auto appearance, Tray icon and behavior, existing enrollment and unchanged connection controls. Compare idle working set against the original budget. Automated checks verify exact logo bytes, raster dimensions and antialiased switch pixels; they do not replace the real Windows visual check.

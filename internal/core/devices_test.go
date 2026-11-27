@@ -124,6 +124,11 @@ func TestDeviceRegistryLifecycle(t *testing.T) {
 		}
 	}
 	checkState("offline")
+	deletePath := "/api/v1/devices/" + issued.ID
+	request("DELETE", deletePath, a.origin, "", nil, 401)
+	request("DELETE", deletePath, "http://other.example.com", "", cookie, 403)
+	request("DELETE", deletePath, a.origin, "", cookie, 409)
+	checkState("offline")
 
 	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + "/api/v1/device/channel"
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -177,6 +182,8 @@ func TestDeviceRegistryLifecycle(t *testing.T) {
 	}
 	send("hello")
 	checkState("online")
+	request("DELETE", deletePath, a.origin, "", cookie, 409)
+	checkState("online")
 	clock.Add(int64(heartbeatInterval.Seconds()))
 	send("heartbeat")
 	checkState("online")
@@ -195,6 +202,19 @@ func TestDeviceRegistryLifecycle(t *testing.T) {
 		t.Fatal("revocation did not close connection promptly")
 	}
 	denied(issued.Credential, "", 401)
+	request("DELETE", deletePath, a.origin, "", nil, 401)
+	request("DELETE", deletePath, "http://other.example.com", "", cookie, 403)
+	request("DELETE", deletePath, a.origin, "", cookie, 200)
+	request("DELETE", deletePath, a.origin, "", cookie, 409)
+	denied(issued.Credential, "", 401)
+	var remaining []deviceView
+	if err := json.Unmarshal(request("GET", "/api/v1/devices", "", "", cookie, 200), &remaining); err != nil || len(remaining) != 0 {
+		t.Fatal("deleted device remained in registry")
+	}
+	var count int
+	if err := s.db.QueryRow("SELECT count(*) FROM devices").Scan(&count); err != nil || count != 0 {
+		t.Fatal("deleted device remained in storage")
+	}
 }
 
 func TestControlValidation(t *testing.T) {

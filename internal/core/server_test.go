@@ -56,6 +56,7 @@ func TestBrandAssets(t *testing.T) {
 		height int
 	}{
 		{"/logo.png", 480, 78},
+		{"/logo-dark.png", 480, 78},
 		{"/favicon.png", 180, 180},
 		{"/apple-touch-icon.png", 180, 180},
 	} {

@@ -86,6 +86,7 @@ func (d *DeviceRegistry) register(mux *http.ServeMux, auth *Auth) {
 	mux.HandleFunc("POST /api/v1/enrollment/grants", operator(true, d.grant))
 	mux.HandleFunc("POST /api/v1/enrollment/exchange", d.exchange)
 	mux.HandleFunc("POST /api/v1/devices/{id}/revoke", operator(true, d.revoke))
+	mux.HandleFunc("DELETE /api/v1/devices/{id}", operator(true, d.deleteRevoked))
 	mux.HandleFunc("GET /api/v1/device/channel", d.channel)
 }
 
@@ -367,6 +368,32 @@ func (d *DeviceRegistry) revokeDevice(ctx context.Context, id string) (bool, err
 		delete(d.active, id)
 	}
 	return true, nil
+}
+
+// deleteRevoked permanently removes only a previously revoked registry entry.
+func (d *DeviceRegistry) deleteRevoked(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	if len(id) != 22 {
+		status(w, 404, "not_found")
+		return
+	}
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	result, err := d.store.db.ExecContext(r.Context(), "DELETE FROM devices WHERE id=? AND revoked_at IS NOT NULL", id)
+	if err != nil {
+		status(w, 503, "unavailable")
+		return
+	}
+	n, err := result.RowsAffected()
+	if err != nil {
+		status(w, 503, "unavailable")
+		return
+	}
+	if n != 1 {
+		status(w, 409, "device_not_revoked_or_missing")
+		return
+	}
+	status(w, 200, "deleted")
 }
 
 type controlMessage struct {

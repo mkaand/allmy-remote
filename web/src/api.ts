@@ -37,6 +37,7 @@ export const api = {
   devices: (signal?: AbortSignal) => request<Device[]>("/devices", "GET", undefined, signal),
   grant: (name: string) => request<Grant>("/enrollment/grants", "POST", {name}),
   revoke: (id: string) => request<{status: string}>("/devices/" + encodeURIComponent(id) + "/revoke", "POST"),
+  deleteDevice: (id: string) => request<{status: string}>("/devices/" + encodeURIComponent(id), "DELETE"),
 };
 
 export function message(error: unknown): string {

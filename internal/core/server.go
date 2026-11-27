@@ -14,7 +14,7 @@ import (
 	"time"
 )
 
-//go:embed static/index.html static/style.css static/app.js static/allmy-theme-init.js static/allmy-theme-controls.css static/logo.png static/apple-touch-icon.png
+//go:embed static/index.html static/style.css static/app.js static/allmy-theme-init.js static/allmy-theme-controls.css static/logo.png static/logo-dark.png static/apple-touch-icon.png
 var assets embed.FS
 
 // Handler serves the embedded dashboard, status endpoints and optional authentication API.
@@ -43,6 +43,7 @@ func Handler(ready func() bool, auth *Auth) http.Handler {
 	})
 	for route, filename := range map[string]string{
 		"/logo.png":             "logo.png",
+		"/logo-dark.png":        "logo-dark.png",
 		"/favicon.png":          "apple-touch-icon.png",
 		"/apple-touch-icon.png": "apple-touch-icon.png",
 	} {

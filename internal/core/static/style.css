@@ -31,7 +31,7 @@ p { margin: .2rem 0; color: var(--muted); }
 .topbar, .section-head { justify-content: space-between; flex-wrap: wrap; }
 .header-actions, .actions { display: flex; flex-wrap: wrap; gap: .4rem; }
 .brand { min-width: 0; max-width: 100%; }
-.brand-logo { display: block; width: 16rem; max-width: 100%; height: auto; padding: .35rem .5rem; border-radius: .6rem; background: #f8fafc; }
+.brand-logo { display: block; width: 16rem; max-width: 100%; height: auto; padding: .35rem .5rem; background: transparent; }
 .brand-tagline { margin-left: .5rem; }
 .device-icon { display: grid; place-items: center; flex: none; color: var(--accent); font-weight: 800; background: var(--hover); border-radius: .75rem; width: 2.65rem; height: 2.65rem; font-size: 1.35rem; }
 button, input { font: inherit; color: var(--text); border: 1px solid var(--border); background: var(--card); border-radius: .55rem; min-height: 44px; }

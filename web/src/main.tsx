@@ -42,8 +42,9 @@ function Login({ onLogin }: {onLogin: () => void}) {
   </section>;
 }
 
-function DeviceCard({ device, onRevoke, busy }: {device: Device; onRevoke: (id: string) => void; busy: boolean}) {
+function DeviceCard({ device, onRevoke, onDelete, busy }: {device: Device; onRevoke: (id: string) => void; onDelete: (id: string) => void; busy: boolean}) {
   const [confirm, setConfirm] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const lastSeen = device.last_seen === null ? "Never" : new Date(device.last_seen * 1000).toLocaleString();
   return <article className="panel device" aria-label={device.name}>
     <div className="device-head">
@@ -52,7 +53,7 @@ function DeviceCard({ device, onRevoke, busy }: {device: Device; onRevoke: (id: 
       <span className={"status " + device.status}><span aria-hidden="true" className="dot" />{device.status}</span>
     </div>
     <p className="last-seen">Last seen: {lastSeen}</p>
-    <dl className="metrics">
+    {device.status !== "revoked" && <><dl className="metrics">
       <div><dt>CPU</dt><dd>—</dd></div><div><dt>RAM</dt><dd>—</dd></div><div><dt>Disk</dt><dd>—</dd></div>
     </dl>
     <p className="small">Telemetry and remote access are not available in this preview.</p>
@@ -60,11 +61,16 @@ function DeviceCard({ device, onRevoke, busy }: {device: Device; onRevoke: (id: 
       <button disabled title="Planned">Desktop</button><button disabled title="Planned">Files</button>
       <button disabled title="Planned">Terminal</button>
     </div>
-    {device.status !== "revoked" && (confirm ?
+    </>}
+    {device.status !== "revoked" ? (confirm ?
       <div className="confirm"><p>Revoke this device and disconnect it?</p>
         <button className="danger" disabled={busy} onClick={() => { setConfirm(false); onRevoke(device.id); }}>Confirm revoke</button>
         <button disabled={busy} onClick={() => setConfirm(false)}>Cancel</button></div> :
-      <button className="quiet" disabled={busy} onClick={() => setConfirm(true)}>Revoke device</button>)}
+      <button className="quiet" disabled={busy} onClick={() => setConfirm(true)}>Revoke device</button>) : confirmDelete ?
+      <div className="confirm"><p>Permanently delete this revoked device? Its old credential will remain unusable.</p>
+        <button className="danger" disabled={busy} onClick={() => { setConfirmDelete(false); onDelete(device.id); }}>Confirm delete</button>
+        <button disabled={busy} onClick={() => setConfirmDelete(false)}>Cancel</button></div> :
+      <button className="danger" disabled={busy} onClick={() => setConfirmDelete(true)}>Delete device</button>}
   </article>;
 }
 
@@ -164,6 +170,16 @@ function Dashboard({ onUnauthorized }: {onUnauthorized: () => void}) {
     finally { if (alive.current) setBusy(false); }
   }
 
+  async function deleteDevice(id: string) {
+    if (busy) return;
+    setBusy(true);
+    try {
+      await api.deleteDevice(id);
+      await refresh();
+    } catch (err) { handleError(err); }
+    finally { if (alive.current) setBusy(false); }
+  }
+
   async function copy() {
     if (!grant || grant.expires_at <= Date.now() / 1000) return;
     try {
@@ -203,7 +219,7 @@ function Dashboard({ onUnauthorized }: {onUnauthorized: () => void}) {
       {error && <p className="error panel" role="alert">{error}{devices !== null ? " Displayed data may be stale." : ""}</p>}
       {devices === null ? <p role="status">Loading devices…</p> : devices.length === 0 ?
         <div className="panel empty"><h3>No devices enrolled</h3><p>Generate a grant to connect an authorized agent.</p></div> :
-        <div className="device-grid">{devices.map(d => <DeviceCard key={d.id} device={d} onRevoke={revoke} busy={busy} />)}</div>}
+        <div className="device-grid">{devices.map(d => <DeviceCard key={d.id} device={d} onRevoke={revoke} onDelete={deleteDevice} busy={busy} />)}</div>}
     </section>
     <section className="panel clipboard"><h2>Universal clipboard</h2><p>Planned · Not enabled. No clipboard data is collected.</p></section>
   </>;
@@ -244,7 +260,7 @@ function App() {
   }
   return <main className="shell">
     <header className="topbar"><div className="brand">
-      <img className="brand-logo" src="/logo.png" alt="AllMy Remote" width={480} height={78} />
+      <img className="brand-logo" src={theme.resolved === "dark" ? "/logo-dark.png" : "/logo.png"} alt="AllMy Remote" width={480} height={78} />
       <p className="small brand-tagline">One platform. All your devices.</p>
     </div><div className="header-actions"><AllMyThemeControls adapter={theme} />
       {state === "signed-in" && <button onClick={() => void logout()} disabled={loggingOut}>Sign out</button>}</div></header>
@@ -256,7 +272,7 @@ function App() {
     {state === "unavailable" && <section className="panel"><p role="alert">Server unavailable.</p><button onClick={() => void checkSession()}>Retry</button></section>}
     {state === "signed-out" && <Login onLogin={signedIn} />}
     {state === "signed-in" && <Dashboard onUnauthorized={unauthorized} />}
-    <footer>AllMy Remote · Sprint 2B · Development preview</footer>
+    <footer>AllMy Remote · Sprint 2C1 · Development preview</footer>
   </main>;
 }
 

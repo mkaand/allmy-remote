@@ -75,7 +75,8 @@ test(engine + ": dashboard authentication, themes, enrollment and revocation", {
     await page.getByRole("heading", { name: "Dashboard", exact: true }).waitFor();
     await page.waitForFunction(() => document.documentElement.dataset.theme === "dark");
     await page.waitForFunction(() => { const img = document.querySelector(".brand-logo"); return img?.complete && img.naturalWidth === 480; });
-    assert.equal(await logo.evaluate(img => getComputedStyle(img).backgroundColor), "rgb(248, 250, 252)");
+    await page.waitForFunction(() => { const img = document.querySelector(".brand-logo"); return img?.complete && img.naturalWidth === 480 && img.getAttribute("src") === "/logo-dark.png"; });
+    assert.equal(await logo.evaluate(img => getComputedStyle(img).backgroundColor), "rgba(0, 0, 0, 0)");
     await page.getByRole("switch", { name: "Switch to light theme" }).click();
     await page.waitForFunction(() => document.documentElement.dataset.theme === "light");
     await page.emulateMedia({ colorScheme: "dark" });
@@ -114,6 +115,13 @@ test(engine + ": dashboard authentication, themes, enrollment and revocation", {
     await card.getByRole("button", { name: "Revoke device" }).click();
     await card.getByRole("button", { name: "Confirm revoke" }).click();
     await card.getByText("revoked", { exact: true }).waitFor();
+    await card.getByRole("button", { name: "Delete device", exact: true }).click();
+    await card.getByRole("button", { name: "Cancel", exact: true }).click();
+    await card.getByText("revoked", { exact: true }).waitFor();
+    await card.getByRole("button", { name: "Delete device", exact: true }).click();
+    await card.getByRole("button", { name: "Confirm delete", exact: true }).click();
+    await card.waitFor({state: "detached"});
+    await page.getByText("No devices enrolled", { exact: true }).waitFor();
     assert.ok(await page.evaluate(() => Object.keys(localStorage).every(key => key === "allmy-theme")));
     await page.getByRole("button", { name: "Sign out" }).click();
     await page.getByRole("heading", { name: "Sign in", exact: true }).waitFor();

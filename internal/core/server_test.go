@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"image/png"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -42,6 +43,37 @@ func TestRoutes(t *testing.T) {
 				res.Header().Get("X-Content-Type-Options") != "nosniff" ||
 				res.Header().Get("Content-Security-Policy") == "" {
 				t.Fatal("missing response security headers")
+			}
+		})
+	}
+}
+
+func TestBrandAssets(t *testing.T) {
+	handler := Handler(func() bool { return true }, nil)
+	for _, tt := range []struct {
+		path   string
+		width  int
+		height int
+	}{
+		{"/logo.png", 480, 78},
+		{"/favicon.png", 180, 180},
+		{"/apple-touch-icon.png", 180, 180},
+	} {
+		t.Run(tt.path, func(t *testing.T) {
+			res := httptest.NewRecorder()
+			handler.ServeHTTP(res, httptest.NewRequest("GET", tt.path, nil))
+			if res.Code != http.StatusOK || res.Header().Get("Content-Type") != "image/png" {
+				t.Fatalf("unexpected asset response: %d %s", res.Code, res.Header().Get("Content-Type"))
+			}
+			img, err := png.Decode(res.Body)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if img.Bounds().Dx() != tt.width || img.Bounds().Dy() != tt.height {
+				t.Fatalf("unexpected dimensions: %v", img.Bounds())
+			}
+			if !strings.Contains(res.Header().Get("Content-Security-Policy"), "img-src 'self'") {
+				t.Fatal("missing same-origin image restriction")
 			}
 		})
 	}

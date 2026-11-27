@@ -27,10 +27,13 @@ h3 { font-size: 1rem; margin: 0; overflow-wrap: anywhere; }
 p { margin: .2rem 0; color: var(--muted); }
 .small { font-size: .83rem; }
 .eyebrow { color: var(--accent); font-size: .75rem; font-weight: 750; letter-spacing: .12em; }
-.topbar, .brand, .header-actions, .section-head, .form-row, .device-head { display: flex; align-items: center; gap: .75rem; }
+.topbar, .header-actions, .section-head, .form-row, .device-head { display: flex; align-items: center; gap: .75rem; }
 .topbar, .section-head { justify-content: space-between; flex-wrap: wrap; }
 .header-actions, .actions { display: flex; flex-wrap: wrap; gap: .4rem; }
-.mark, .device-icon { display: grid; place-items: center; flex: none; color: var(--accent); font-weight: 800; background: var(--hover); border-radius: .75rem; width: 2.65rem; height: 2.65rem; font-size: 1.35rem; }
+.brand { min-width: 0; max-width: 100%; }
+.brand-logo { display: block; width: 16rem; max-width: 100%; height: auto; padding: .35rem .5rem; border-radius: .6rem; background: #f8fafc; }
+.brand-tagline { margin-left: .5rem; }
+.device-icon { display: grid; place-items: center; flex: none; color: var(--accent); font-weight: 800; background: var(--hover); border-radius: .75rem; width: 2.65rem; height: 2.65rem; font-size: 1.35rem; }
 button, input { font: inherit; color: var(--text); border: 1px solid var(--border); background: var(--card); border-radius: .55rem; min-height: 44px; }
 button { cursor: pointer; padding: .5rem .85rem; font-size: .86rem; font-weight: 600; }
 button:hover:not(:disabled) { background: var(--hover); }

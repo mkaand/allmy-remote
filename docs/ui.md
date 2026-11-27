@@ -14,3 +14,7 @@ Design target: clear, compact, responsive, accessible dashboard. No real device 
 ## Sprint 1D implementation
 
 React/TypeScript, bundled with esbuild and embedded in the Go binary. AllMy Theme Controls reuses the existing React component and CSS from Changd Fusion (source commit 2a2cf2b0b590b21866d85c9d6bec8870318922b3); the application adapter omits Ant Design, uses local palette metadata, and migrates the previous preview key. The canonical preference key is allmy-theme. Prepaint initialization uses an external script under the existing CSP. Auto follows OS changes; explicit modes override them; storage events synchronize tabs. Poll every 10 seconds only while visible, refresh on demand, label stale data after errors, never store session or enrollment secrets in local storage. No remote-control actions until implemented.
+
+## Sprint 2A branding
+
+Use the approved multi-device logo in the shared login/dashboard header and the matching app icon for browser tabs and Apple touch icons. Both optimized PNGs are embedded in the existing Go binary, with same-origin image loading under CSP. The logo has a light neutral backing for legibility in dark mode; the header wraps on small screens. No external image requests, new runtime dependencies or changes to the canonical theme controls. The app icon is also the README mark and the basis for later native-agent icons.

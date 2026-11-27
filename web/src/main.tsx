@@ -243,9 +243,10 @@ function App() {
     } finally { setLoggingOut(false); }
   }
   return <main className="shell">
-    <header className="topbar"><div className="brand"><span className="mark" aria-hidden="true">A</span><div>
-      <p className="eyebrow">ALLMY REMOTE</p><p className="small">One platform. All your devices.</p>
-    </div></div><div className="header-actions"><AllMyThemeControls adapter={theme} />
+    <header className="topbar"><div className="brand">
+      <img className="brand-logo" src="/logo.png" alt="AllMy Remote" width={480} height={78} />
+      <p className="small brand-tagline">One platform. All your devices.</p>
+    </div><div className="header-actions"><AllMyThemeControls adapter={theme} />
       {state === "signed-in" && <button onClick={() => void logout()} disabled={loggingOut}>Sign out</button>}</div></header>
     <div className="preview" role="note"><strong>Development preview</strong><span>Local testing only · Mock devices · Not production-ready</span></div>
     <div className="page-title"><h1>{state === "signed-in" ? "Dashboard" : "Welcome to AllMy Remote"}</h1>
@@ -255,7 +256,7 @@ function App() {
     {state === "unavailable" && <section className="panel"><p role="alert">Server unavailable.</p><button onClick={() => void checkSession()}>Retry</button></section>}
     {state === "signed-out" && <Login onLogin={signedIn} />}
     {state === "signed-in" && <Dashboard onUnauthorized={unauthorized} />}
-    <footer>AllMy Remote · Sprint 1E · Development preview</footer>
+    <footer>AllMy Remote · Sprint 2A · Development preview</footer>
   </main>;
 }
 

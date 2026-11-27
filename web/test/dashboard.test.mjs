@@ -53,9 +53,19 @@ test(engine + ": dashboard authentication, themes, enrollment and revocation", {
     page.on("pageerror", error => errors.push(error.message));
     await page.goto(origin);
     await page.getByRole("heading", { name: "Sign in", exact: true }).waitFor();
+    const logo = page.getByRole("img", { name: "AllMy Remote", exact: true });
+    await logo.waitFor();
+    await page.waitForFunction(() => { const img = document.querySelector(".brand-logo"); return img?.complete && img.naturalWidth === 480; });
+    for (const [rel, path] of [["icon", "/favicon.png"], ["apple-touch-icon", "/apple-touch-icon.png"]]) {
+      assert.equal(await page.locator(`link[rel="${rel}"]`).getAttribute("href"), path);
+      const response = await page.request.get(origin + path);
+      assert.equal(response.status(), 200);
+      assert.equal(response.headers()["content-type"], "image/png");
+    }
     await page.getByLabel("Password", { exact: true }).fill(password);
     await page.getByRole("button", { name: "Sign in", exact: true }).click();
     await page.getByRole("heading", { name: "Dashboard", exact: true }).waitFor();
+    assert.equal(await logo.isVisible(), true);
     await page.getByText("No devices enrolled", { exact: true }).waitFor();
     await page.emulateMedia({ colorScheme: "light" });
     await page.waitForFunction(() => document.documentElement.dataset.theme === "light" && document.documentElement.dataset.themeMode === "system");
@@ -64,6 +74,8 @@ test(engine + ": dashboard authentication, themes, enrollment and revocation", {
     await page.reload();
     await page.getByRole("heading", { name: "Dashboard", exact: true }).waitFor();
     await page.waitForFunction(() => document.documentElement.dataset.theme === "dark");
+    await page.waitForFunction(() => { const img = document.querySelector(".brand-logo"); return img?.complete && img.naturalWidth === 480; });
+    assert.equal(await logo.evaluate(img => getComputedStyle(img).backgroundColor), "rgb(248, 250, 252)");
     await page.getByRole("switch", { name: "Switch to light theme" }).click();
     await page.waitForFunction(() => document.documentElement.dataset.theme === "light");
     await page.emulateMedia({ colorScheme: "dark" });
@@ -81,6 +93,7 @@ test(engine + ": dashboard authentication, themes, enrollment and revocation", {
     await page.waitForFunction(() => document.documentElement.dataset.theme === "light" && document.documentElement.dataset.themeMode === "system");
     await page.setViewportSize({ width: 390, height: 844 });
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), "mobile overflow");
+    assert.equal(await logo.isVisible(), true);
     await page.getByLabel("Device name", { exact: true }).fill("Mock acceptance device");
     await page.getByRole("button", { name: "Generate grant" }).click();
     const grantInput = page.getByLabel("Enrollment grant", { exact: true });

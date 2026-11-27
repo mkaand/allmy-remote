@@ -1,8 +1,8 @@
-# AllMy Remote
+# <img src="internal/core/static/apple-touch-icon.png" width="40" height="40" alt=""> AllMy Remote
 
 A lightweight, self-hosted remote desktop and device management platform, built from scratch. One platform. All your devices.
 
-**Status: Sprint 1E — isolated deployment candidate.** The Go core includes an embedded React/TypeScript dashboard, health/readiness, SQLite WAL storage and single-operator authentication API. Adds a mock-only device registry, one-time enrollment and authenticated WebSocket heartbeat. Includes browser sign-in/out, device cards, enrollment grants, revoke action and persistent system/light/dark theme. Includes a loopback-only persistent Compose preview. No native agent, remote access or production deployment is available. Features below remain planned.
+**Status: Sprint 2A — branded development preview.** The shared login/dashboard header uses the approved multi-device logo with a high-contrast backing in both themes. The matching app icon is served locally as a browser favicon and Apple touch icon.  The Go core includes an embedded React/TypeScript dashboard, health/readiness, SQLite WAL storage and single-operator authentication API. Adds a mock-only device registry, one-time enrollment and authenticated WebSocket heartbeat. Includes browser sign-in/out, device cards, enrollment grants, revoke action and persistent system/light/dark theme. Includes a loopback-only persistent Compose preview. No native agent, remote access or production deployment is available. Features below remain planned.
 
 ## Goals
 

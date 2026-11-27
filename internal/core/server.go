@@ -14,7 +14,7 @@ import (
 	"time"
 )
 
-//go:embed static/index.html static/style.css static/app.js static/allmy-theme-init.js static/allmy-theme-controls.css
+//go:embed static/index.html static/style.css static/app.js static/allmy-theme-init.js static/allmy-theme-controls.css static/logo.png static/apple-touch-icon.png
 var assets embed.FS
 
 // Handler serves the embedded dashboard, status endpoints and optional authentication API.
@@ -41,6 +41,16 @@ func Handler(ready func() bool, auth *Auth) http.Handler {
 	mux.HandleFunc("GET /allmy-theme-controls.css", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFileFS(w, r, static, "allmy-theme-controls.css")
 	})
+	for route, filename := range map[string]string{
+		"/logo.png":             "logo.png",
+		"/favicon.png":          "apple-touch-icon.png",
+		"/apple-touch-icon.png": "apple-touch-icon.png",
+	} {
+		mux.HandleFunc("GET "+route, func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "image/png")
+			http.ServeFileFS(w, r, static, filename)
+		})
+	}
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, _ *http.Request) {
 		status(w, http.StatusOK, "ok")
 	})
@@ -61,7 +71,7 @@ func Handler(ready func() bool, auth *Auth) http.Handler {
 		w.Header().Set("Cache-Control", "no-store")
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("Referrer-Policy", "no-referrer")
-		w.Header().Set("Content-Security-Policy", "default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'")
+		w.Header().Set("Content-Security-Policy", "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'")
 		mux.ServeHTTP(w, r)
 	})
 }

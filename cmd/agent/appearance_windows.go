@@ -139,7 +139,7 @@ func (u *nativeUI) initAppearance() {
 		user32.NewProc("SendMessageW").Call(p.footer, 0x0030, p.smallFont, 1)
 	}
 	if host, err := os.Hostname(); err == nil && host != "" {
-		setText(p.device, host + " | Windows")
+		setText(p.device, host+" | Windows")
 	}
 	u.applyAppearance()
 }
@@ -312,7 +312,7 @@ func (u *nativeUI) drawControl(ptr uintptr) bool {
 		if d.ID == idTray {
 			on, detail = p.minimize, "Keep running in the notification area"
 		}
-		s := func(n int) int32 { return int32(n*u.dpi/96) }
+		s := func(n int) int32 { return int32(n * u.dpi / 96) }
 		name := uiRect{r.Left + s(14), r.Top + s(7), r.Right - s(66), r.Top + s(29)}
 		sub := uiRect{name.Left, r.Top + s(28), name.Right, r.Bottom - s(3)}
 		drawLabel(d.DC, p.bodyFont, label, name, fg, 0x24)

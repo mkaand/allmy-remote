@@ -1,7 +1,7 @@
 export type Device = {
   id: string;
   name: string;
-  platform: "mock";
+  platform: "mock" | "windows";
   status: "online" | "offline" | "revoked";
   last_seen: number | null;
 };

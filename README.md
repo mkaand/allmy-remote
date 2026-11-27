@@ -2,7 +2,7 @@
 
 A lightweight, self-hosted remote desktop and device management platform, built from scratch. One platform. All your devices.
 
-**Status: Sprint 2A — branded development preview.** The shared login/dashboard header uses the approved multi-device logo with a high-contrast backing in both themes. The matching app icon is served locally as a browser favicon and Apple touch icon.  The Go core includes an embedded React/TypeScript dashboard, health/readiness, SQLite WAL storage and single-operator authentication API. Adds a mock-only device registry, one-time enrollment and authenticated WebSocket heartbeat. Includes browser sign-in/out, device cards, enrollment grants, revoke action and persistent system/light/dark theme. Includes a loopback-only persistent Compose preview. No native agent, remote access or production deployment is available. Features below remain planned.
+**Status: Sprint 2B — Windows presence-only agent preview.** The shared login/dashboard header uses the approved multi-device logo with a high-contrast backing in both themes. The matching app icon is served locally as a browser favicon and Apple touch icon.  The Go core includes an embedded React/TypeScript dashboard, health/readiness, SQLite WAL storage and single-operator authentication API. Adds a mock-only device registry, one-time enrollment and authenticated WebSocket heartbeat. Includes browser sign-in/out, device cards, enrollment grants, revoke action and persistent system/light/dark theme. Includes a loopback-only persistent Compose preview. A Windows x64 foreground agent is included for authorized development testing; remote access and production deployment are not available. Features below remain planned.
 
 ## Goals
 
@@ -17,7 +17,7 @@ A lightweight, self-hosted remote desktop and device management platform, built 
 
 | Platform | Target | Status |
 | --- | --- | --- |
-| Windows 11 x64 | First native host and web client | Planned |
+| Windows 11 x64 | First native host and web client | Presence-only agent preview |
 | Linux x64 (Zorin OS) | Native host and web client | Planned |
 | Linux ARMv6 | Lightweight management host; GUI conditional | Planned |
 | iOS Safari | Browser client; explicit clipboard actions | Planned |
@@ -63,11 +63,15 @@ Initialize the single administrator before starting the service with `go run ./c
 
 ### Device registry preview
 
-Authenticated operator endpoints: GET /api/v1/devices, POST /api/v1/enrollment/grants (JSON name), POST /api/v1/devices/{id}/revoke. Grants expire after five minutes and may be exchanged once via POST /api/v1/enrollment/exchange (JSON grant). The exchange returns a mock device ID and unique credential once; only credential hashes are stored. Native/mock clients use GET /api/v1/device/channel with an Authorization Bearer header, then version-1 JSON hello and heartbeat messages with IDs. Heartbeat interval is 15 seconds, offline timeout 45 seconds. All devices in this preview are explicitly labeled mock; no remote-control capability is granted. The preview is local only; production TLS, protected credential storage, user consent in the native agent, and remaining security gates are mandatory before remote access.
+Authenticated operator endpoints: GET /api/v1/devices, POST /api/v1/enrollment/grants (JSON name), POST /api/v1/devices/{id}/revoke. Grants expire after five minutes and may be exchanged once via POST /api/v1/enrollment/exchange (JSON grant). The exchange returns a device ID, declared platform (mock by default, or windows) and unique credential once; only credential hashes are stored. Native/mock clients use GET /api/v1/device/channel with an Authorization Bearer header, then version-1 JSON hello and heartbeat messages with IDs. Heartbeat interval is 15 seconds, offline timeout 45 seconds. Mock devices and self-reported Windows agents are distinguished in the registry; no remote-control capability is granted. The preview is local only; production TLS, protected credential storage, user consent in the native agent, and remaining security gates are mandatory before remote access.
 
 ### Dashboard preview
 
-The dashboard lists real registry data, explicitly labels mock devices, refreshes while visible and never invents telemetry. Generate a one-time grant, transfer it only to an authorized mock client, refresh the registry, and revoke a device when needed. Native remote desktop, files, terminal and clipboard remain disabled. Chromium and WebKit browser acceptance run against the compiled binary in CI using an ephemeral loopback HTTPS test proxy. A disposable Compose fixture checks persistent state after container replacement. These do not replace real-device or real-server acceptance. The AllMy Theme Controls switch and Auto button reuse the React component and CSS from the existing AllMy project implementation; the adapter is tailored to this app without Ant Design. The canonical preference key is allmy-theme.
+The dashboard lists real registry data, distinguishes mock and Windows devices, refreshes while visible and never invents telemetry. Generate a one-time grant, transfer it only to an authorized native agent or mock client, refresh the registry, and revoke a device when needed. Native remote desktop, files, terminal and clipboard remain disabled. Chromium and WebKit browser acceptance run against the compiled binary in CI using an ephemeral loopback HTTPS test proxy. A disposable Compose fixture checks persistent state after container replacement. These do not replace real-device or real-server acceptance. The AllMy Theme Controls switch and Auto button reuse the React component and CSS from the existing AllMy project implementation; the adapter is tailored to this app without Ant Design. The canonical preference key is allmy-theme.
+
+### Windows agent preview
+
+Download the Windows x64 preview artifact from a successful CI run for the reviewed commit, or build locally with Go on Windows: `go build -o allmy-agent.exe ./cmd/agent`. The binary is unsigned; verify its origin and do not disable Windows security controls. Start an interactive terminal under your own Windows account. Create a named device grant in the dashboard, then run `allmy-agent.exe pair --server https://remote.example.com` and enter the grant into the hidden console prompt. The agent does not start automatically. Run `allmy-agent.exe run` for presence and heartbeat; Ctrl+C stops it. Revoke in the dashboard, then run `allmy-agent.exe unpair` to delete local enrollment. Credentials are encrypted with current-user Windows DPAPI under LocalAppData; no credential in arguments, URLs or logs. TLS certificate checks remain enabled; redirects are rejected. A network access policy that blocks the agent will require a separately authorized access solution; never bypass the policy. No installer, service, startup task, privilege elevation, screen capture, input, remote commands, clipboard, hardware telemetry or file access. Windows platform is a client declaration, not attestation. Actual NUC acceptance is pending.
 
 ## License
 

@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/coder/websocket"
+	"github.com/mkaand/allmy-remote/internal/agent"
 )
 
 func TestDeviceRegistryLifecycle(t *testing.T) {
@@ -238,5 +239,135 @@ func TestDeviceMigrationFromV1(t *testing.T) {
 	}
 	if err := reopened.db.QueryRow("SELECT count(*) FROM devices").Scan(&count); err != nil || count != 0 {
 		t.Fatal("device schema missing")
+	}
+}
+
+func TestWindowsEnrollmentAndV2Migration(t *testing.T) {
+	s, dir := testStore(t)
+	if err := s.InitAdmin(context.Background(), "test-password-long"); err != nil {
+		t.Fatal(err)
+	}
+	// Recreate the exact v2 device table with an existing legacy row.
+	for _, query := range []string{
+		"ALTER TABLE devices DROP COLUMN platform",
+		"INSERT INTO devices(id,name,credential_hash,created_at) VALUES('legacy','Legacy mock',zeroblob(32),1)",
+		"PRAGMA user_version=2",
+	} {
+		if _, err := s.db.Exec(query); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := s.Close(); err != nil {
+		t.Fatal(err)
+	}
+	s, err := OpenStore(context.Background(), dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	d := NewDeviceRegistry(s)
+	defer d.Close()
+	views, err := d.snapshot(context.Background())
+	if err != nil || len(views) != 1 || views[0].Platform != "mock" {
+		t.Fatal("legacy device not preserved")
+	}
+	grant, hash, err := newToken()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.db.Exec("INSERT INTO enrollment_grants(token_hash,name,expires_at) VALUES(?,?,?)", hash[:], "Windows test", time.Now().Add(time.Minute).Unix()); err != nil {
+		t.Fatal(err)
+	}
+	for _, platform := range []string{"unknown", "windows"} {
+		body, err := json.Marshal(map[string]string{"grant": grant, "platform": platform})
+		if err != nil {
+			t.Fatal(err)
+		}
+		r := httptest.NewRequest("POST", "/api/v1/enrollment/exchange", bytes.NewReader(body))
+		r.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		d.exchange(w, r)
+		if platform == "unknown" {
+			if w.Code != 400 {
+				t.Fatal("unknown platform accepted")
+			}
+		} else if w.Code != 201 || !strings.Contains(w.Body.String(), `"platform":"windows"`) {
+			t.Fatal("Windows enrollment failed")
+		}
+	}
+	views, err = d.snapshot(context.Background())
+	if err != nil || len(views) != 2 || views[1].Platform != "windows" {
+		t.Fatal("Windows platform not persisted")
+	}
+}
+
+func TestNativeAgentAgainstCore(t *testing.T) {
+	s, _ := testStore(t)
+	a := NewAuth(s, "https://example.com")
+	d := a.devices
+	server := httptest.NewTLSServer(Handler(func() bool { return true }, a))
+	defer server.Close()
+	defer d.Close()
+	grant, hash, err := newToken()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.db.Exec("INSERT INTO enrollment_grants(token_hash,name,expires_at) VALUES(?,?,?)", hash[:], "Native test", time.Now().Add(time.Minute).Unix()); err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	state, err := agent.Enroll(ctx, server.URL, grant, server.Client())
+	if err != nil {
+		t.Fatal("native enrollment failed")
+	}
+	connected := make(chan struct{}, 1)
+	done := make(chan error, 1)
+	go func() {
+		done <- agent.Run(ctx, state, server.Client(), func(status string) {
+			if status == "Connected; heartbeat only." {
+				select {
+				case connected <- struct{}{}:
+				default:
+				}
+			}
+		})
+	}()
+	select {
+	case <-connected:
+	case <-ctx.Done():
+		t.Fatal("native hello failed")
+	}
+	views, err := d.snapshot(ctx)
+	if err != nil || len(views) != 1 || views[0].Platform != "windows" || views[0].Status != "online" || views[0].LastSeen == nil {
+		t.Fatal("native device not online")
+	}
+	firstSeen := *views[0].LastSeen
+	for {
+		views, err = d.snapshot(ctx)
+		if err != nil {
+			t.Fatal("snapshot failed")
+		}
+		if views[0].LastSeen != nil && *views[0].LastSeen > firstSeen {
+			break
+		}
+		select {
+		case <-ctx.Done():
+			t.Fatal("native heartbeat not received")
+		case <-time.After(100 * time.Millisecond):
+		}
+	}
+	ok, err := d.revokeDevice(ctx, state.ID)
+	if err != nil || !ok {
+		t.Fatal("revoke failed")
+	}
+	cancel()
+	if err := <-done; err != nil {
+		t.Fatal("agent did not stop")
+	}
+	deniedCtx, stop := context.WithTimeout(context.Background(), 5*time.Second)
+	defer stop()
+	if err := agent.Run(deniedCtx, state, server.Client(), func(string) {}); err != agent.ErrDenied {
+		t.Fatal("revoked agent reconnected")
 	}
 }

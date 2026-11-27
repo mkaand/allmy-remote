@@ -30,3 +30,7 @@ Each change gets focused tests and a concise manual checklist when there is a us
 ## Isolated deployment candidate
 
 Automated gates include a persistent Compose fixture (container removal/recreation, admin login, revoked-device state, loopback binding and runtime restrictions), and Chromium/WebKit browser checks via test-only loopback HTTPS. WebKit automation is not an actual iPhone Safari test. Follow [manual deployment acceptance](deployment-preview.md) after deploying to an approved isolated host. Only mark Sprint 1 accepted after these manual checks and recorded resource measurements; production remains blocked.
+
+## Sprint 2B first hardware acceptance
+
+Before upgrading, stop the preview and back up its private SQLite volume, verify restoration, and retain the previous image. Schema 3 preserves existing devices as mock and stores the declared Windows platform. A downgrade after migration requires restoring the pre-migration backup. Check a Windows x64 CI build and DPAPI round trip, then pair a single authorized NUC via hidden grant input, start the foreground agent, verify Windows/online and manual Refresh, wait for at least two heartbeat intervals, stop and verify offline, restart and verify online without re-pairing, revoke and verify reconnection is rejected, then unpair locally. Measure process CPU and working set for five minutes after warmup. Confirm no service, startup, elevation or remote-control capability. Cloudflare/browser access policy is separate from agent credentials. Do not weaken it to make a test pass.

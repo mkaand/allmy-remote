@@ -48,7 +48,7 @@ function DeviceCard({ device, onRevoke, busy }: {device: Device; onRevoke: (id: 
   return <article className="panel device" aria-label={device.name}>
     <div className="device-head">
       <div className="device-icon" aria-hidden="true">▣</div>
-      <div className="device-name"><h3>{device.name}</h3><p>Mock device · Preview</p></div>
+      <div className="device-name"><h3>{device.name}</h3><p>{device.platform === "windows" ? "Windows · Agent preview" : "Mock device · Preview"}</p></div>
       <span className={"status " + device.status}><span aria-hidden="true" className="dot" />{device.status}</span>
     </div>
     <p className="last-seen">Last seen: {lastSeen}</p>
@@ -177,11 +177,11 @@ function Dashboard({ onUnauthorized }: {onUnauthorized: () => void}) {
   return <>
     <section className="summary" aria-label="Overview">
       <article className="panel"><h2>Enrolled devices</h2><p className="value">{enrolled?.length ?? "—"}</p><p>Authorized registry</p></article>
-      <article className="panel"><h2>Online</h2><p className="value">{online ?? "—"}</p><p>Connected mock devices</p></article>
+      <article className="panel"><h2>Online</h2><p className="value">{online ?? "—"}</p><p>Connected enrolled devices</p></article>
       <article className="panel"><h2>Active sessions</h2><p className="value">—</p><p>Remote desktop pending</p></article>
     </section>
     <section className="panel enrollment" aria-labelledby="enroll-title">
-      <div><h2 id="enroll-title">Enroll a device</h2><p>Generate a single-use grant for a mock client. Valid for five minutes.</p></div>
+      <div><h2 id="enroll-title">Enroll a device</h2><p>Generate a single-use grant for an authorized agent or mock client. Valid for five minutes.</p></div>
       <form onSubmit={enroll}>
         <label htmlFor="device-name">Device name</label>
         <div className="form-row"><input id="device-name" required maxLength={96} value={name}
@@ -192,7 +192,7 @@ function Dashboard({ onUnauthorized }: {onUnauthorized: () => void}) {
         <label htmlFor="grant-code">Enrollment grant</label>
         <div className="form-row"><input id="grant-code" readOnly spellCheck={false} autoComplete="off"
           value={grant.grant} onFocus={e => e.target.select()} /><button onClick={() => void copy()}>Copy</button></div>
-        <p className="small">Expires in {seconds}s. Share only with your authorized test client.</p>
+        <p className="small">Expires in {seconds}s. Enter only in your authorized local agent or test client.</p>
         <p className="small" role="status">{copyStatus}</p>
         <button className="quiet" onClick={() => { setGrant(null); setCopyStatus(""); }}>Hide grant</button>
       </div>}
@@ -202,7 +202,7 @@ function Dashboard({ onUnauthorized }: {onUnauthorized: () => void}) {
         <button onClick={() => void refresh()}>Refresh</button></div>
       {error && <p className="error panel" role="alert">{error}{devices !== null ? " Displayed data may be stale." : ""}</p>}
       {devices === null ? <p role="status">Loading devices…</p> : devices.length === 0 ?
-        <div className="panel empty"><h3>No devices enrolled</h3><p>Generate a grant to connect an authorized mock client.</p></div> :
+        <div className="panel empty"><h3>No devices enrolled</h3><p>Generate a grant to connect an authorized agent.</p></div> :
         <div className="device-grid">{devices.map(d => <DeviceCard key={d.id} device={d} onRevoke={revoke} busy={busy} />)}</div>}
     </section>
     <section className="panel clipboard"><h2>Universal clipboard</h2><p>Planned · Not enabled. No clipboard data is collected.</p></section>
@@ -248,7 +248,7 @@ function App() {
       <p className="small brand-tagline">One platform. All your devices.</p>
     </div><div className="header-actions"><AllMyThemeControls adapter={theme} />
       {state === "signed-in" && <button onClick={() => void logout()} disabled={loggingOut}>Sign out</button>}</div></header>
-    <div className="preview" role="note"><strong>Development preview</strong><span>Local testing only · Mock devices · Not production-ready</span></div>
+    <div className="preview" role="note"><strong>Development preview</strong><span>Authorized development testing only · No remote control · Not production-ready</span></div>
     <div className="page-title"><h1>{state === "signed-in" ? "Dashboard" : "Welcome to AllMy Remote"}</h1>
       <p>{state === "signed-in" ? "Manage your authorized devices in one place." : "Secure operator access to your development workspace."}</p></div>
     {logoutError && state === "signed-in" && <p role="alert" className="error">{logoutError}</p>}
@@ -256,7 +256,7 @@ function App() {
     {state === "unavailable" && <section className="panel"><p role="alert">Server unavailable.</p><button onClick={() => void checkSession()}>Retry</button></section>}
     {state === "signed-out" && <Login onLogin={signedIn} />}
     {state === "signed-in" && <Dashboard onUnauthorized={unauthorized} />}
-    <footer>AllMy Remote · Sprint 2A · Development preview</footer>
+    <footer>AllMy Remote · Sprint 2B · Development preview</footer>
   </main>;
 }
 

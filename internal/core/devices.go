@@ -216,9 +216,17 @@ func (d *DeviceRegistry) exchange(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var input struct {
-		Grant string `json:"grant"`
+		Grant    string `json:"grant"`
+		Platform string `json:"platform,omitempty"`
 	}
 	if !decodeRequest(w, r, &input) {
+		return
+	}
+	if input.Platform == "" {
+		input.Platform = "mock"
+	}
+	if input.Platform != "mock" && input.Platform != "windows" {
+		status(w, 400, "invalid_platform")
 		return
 	}
 	hash, ok := tokenHash(input.Grant)
@@ -267,7 +275,7 @@ func (d *DeviceRegistry) exchange(w http.ResponseWriter, r *http.Request) {
 		status(w, 503, "unavailable")
 		return
 	}
-	if _, err = tx.ExecContext(r.Context(), "INSERT INTO devices(id,name,credential_hash,created_at) VALUES(?,?,?,?)", id, name, credentialHash[:], now); err != nil {
+	if _, err = tx.ExecContext(r.Context(), "INSERT INTO devices(id,name,credential_hash,created_at,platform) VALUES(?,?,?,?,?)", id, name, credentialHash[:], now, input.Platform); err != nil {
 		status(w, 503, "unavailable")
 		return
 	}
@@ -275,7 +283,7 @@ func (d *DeviceRegistry) exchange(w http.ResponseWriter, r *http.Request) {
 		status(w, 503, "unavailable")
 		return
 	}
-	writeJSON(w, 201, map[string]string{"id": id, "credential": credential, "platform": "mock"})
+	writeJSON(w, 201, map[string]string{"id": id, "credential": credential, "platform": input.Platform})
 }
 
 type deviceView struct {
@@ -298,7 +306,7 @@ func (d *DeviceRegistry) list(w http.ResponseWriter, r *http.Request) {
 func (d *DeviceRegistry) snapshot(ctx context.Context) ([]deviceView, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	rows, err := d.store.db.QueryContext(ctx, "SELECT id,name,last_seen,revoked_at FROM devices ORDER BY created_at,id LIMIT 100")
+	rows, err := d.store.db.QueryContext(ctx, "SELECT id,name,platform,last_seen,revoked_at FROM devices ORDER BY created_at,id LIMIT 100")
 	if err != nil {
 		return nil, err
 	}
@@ -307,10 +315,10 @@ func (d *DeviceRegistry) snapshot(ctx context.Context) ([]deviceView, error) {
 	for rows.Next() {
 		var v deviceView
 		var seen, revoked sql.NullInt64
-		if err = rows.Scan(&v.ID, &v.Name, &seen, &revoked); err != nil {
+		if err = rows.Scan(&v.ID, &v.Name, &v.Platform, &seen, &revoked); err != nil {
 			return nil, err
 		}
-		v.Platform, v.Status = "mock", "offline"
+		v.Status = "offline"
 		if seen.Valid {
 			t := seen.Int64
 			v.LastSeen = &t

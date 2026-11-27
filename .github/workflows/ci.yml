@@ -77,3 +77,26 @@ jobs:
         run: |
           docker tag allmy-remote:ci allmy-remote:preview
           python3 tests/preview_persistence.py
+
+  windows-agent:
+    name: Windows agent checks
+    runs-on: windows-2025
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16
+        with:
+          go-version: '1.26.11'
+          cache: false
+      - name: Agent tests
+        run: go test -mod=readonly ./internal/agent ./cmd/agent
+      - name: Agent build
+        run: go build -mod=readonly -trimpath -ldflags="-s -w" -o allmy-agent.exe ./cmd/agent
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: allmy-agent-windows-x64-preview
+          path: allmy-agent.exe
+          if-no-files-found: error
+          retention-days: 7

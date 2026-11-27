@@ -125,6 +125,12 @@ func TestDeviceRegistryLifecycle(t *testing.T) {
 	}
 	checkState("offline")
 	deletePath := "/api/v1/devices/" + issued.ID
+	metadata := `{"name":"Renamed device","icon":"mini-pc"}`
+	request("PATCH", deletePath, a.origin, metadata, nil, 401)
+	request("PATCH", deletePath, "http://other.example.com", metadata, cookie, 403)
+	request("PATCH", deletePath, a.origin, `{"name":"Renamed device","icon":"bogus"}`, cookie, 400)
+	request("PATCH", deletePath, a.origin, `{"name":" ","icon":"desktop"}`, cookie, 400)
+	request("PATCH", deletePath, a.origin, `{"name":"Device","icon":"auto","platform":"windows"}`, cookie, 400)
 	request("DELETE", deletePath, a.origin, "", nil, 401)
 	request("DELETE", deletePath, "http://other.example.com", "", cookie, 403)
 	request("DELETE", deletePath, a.origin, "", cookie, 409)
@@ -182,6 +188,14 @@ func TestDeviceRegistryLifecycle(t *testing.T) {
 	}
 	send("hello")
 	checkState("online")
+	request("PATCH", deletePath, a.origin, metadata, cookie, 200)
+	var edited []deviceView
+	if err := json.Unmarshal(request("GET", "/api/v1/devices", "", "", cookie, 200), &edited); err != nil || len(edited) != 1 || edited[0].ID != issued.ID || edited[0].Name != "Renamed device" || edited[0].Icon != "mini-pc" || edited[0].Platform != "mock" || edited[0].Status != "online" {
+		t.Fatal("metadata edit altered device identity or connection")
+	}
+	if err := s.db.QueryRow("SELECT credential_hash FROM devices WHERE id=?", issued.ID).Scan(&stored); err != nil || !bytes.Equal(stored, wantHash[:]) {
+		t.Fatal("credential changed after edit")
+	}
 	request("DELETE", deletePath, a.origin, "", cookie, 409)
 	checkState("online")
 	clock.Add(int64(heartbeatInterval.Seconds()))
@@ -196,6 +210,7 @@ func TestDeviceRegistryLifecycle(t *testing.T) {
 	request("POST", revoke, "http://other.example.com", "", cookie, 403)
 	request("POST", revoke, a.origin, "", cookie, 200)
 	checkState("revoked")
+	request("PATCH", deletePath, a.origin, metadata, cookie, 409)
 	closeCtx, stop := context.WithTimeout(context.Background(), 2*time.Second)
 	defer stop()
 	if _, _, err := conn.Read(closeCtx); err == nil || closeCtx.Err() != nil {
@@ -269,6 +284,7 @@ func TestWindowsEnrollmentAndV2Migration(t *testing.T) {
 	}
 	// Recreate the exact v2 device table with an existing legacy row.
 	for _, query := range []string{
+		"ALTER TABLE devices DROP COLUMN icon",
 		"ALTER TABLE devices DROP COLUMN platform",
 		"INSERT INTO devices(id,name,credential_hash,created_at) VALUES('legacy','Legacy mock',zeroblob(32),1)",
 		"PRAGMA user_version=2",
@@ -288,7 +304,7 @@ func TestWindowsEnrollmentAndV2Migration(t *testing.T) {
 	d := NewDeviceRegistry(s)
 	defer d.Close()
 	views, err := d.snapshot(context.Background())
-	if err != nil || len(views) != 1 || views[0].Platform != "mock" {
+	if err != nil || len(views) != 1 || views[0].Platform != "mock" || views[0].Icon != "auto" {
 		t.Fatal("legacy device not preserved")
 	}
 	grant, hash, err := newToken()
@@ -389,5 +405,43 @@ func TestNativeAgentAgainstCore(t *testing.T) {
 	defer stop()
 	if err := agent.Run(deniedCtx, state, server.Client(), func(string) {}); err != agent.ErrDenied {
 		t.Fatal("revoked agent reconnected")
+	}
+}
+
+func TestDeviceMetadataMigrationFromV3(t *testing.T) {
+	s, dir := testStore(t)
+	if err := s.InitAdmin(context.Background(), "test-password-long"); err != nil {
+		t.Fatal(err)
+	}
+	for _, query := range []string{
+		"ALTER TABLE devices DROP COLUMN icon",
+		"INSERT INTO devices(id,name,credential_hash,created_at,platform,last_seen) VALUES('legacy','Legacy Windows',zeroblob(32),1,'windows',2)",
+		"PRAGMA user_version=3",
+	} {
+		if _, err := s.db.Exec(query); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := s.Close(); err != nil {
+		t.Fatal(err)
+	}
+	reopened, err := OpenStore(context.Background(), dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer reopened.Close()
+	d := NewDeviceRegistry(reopened)
+	defer d.Close()
+	views, err := d.snapshot(context.Background())
+	if err != nil || len(views) != 1 || views[0].ID != "legacy" || views[0].Name != "Legacy Windows" || views[0].Platform != "windows" || views[0].Icon != "auto" || views[0].LastSeen == nil || *views[0].LastSeen != 2 {
+		t.Fatal("v3 metadata not preserved")
+	}
+	var hash []byte
+	if err := reopened.db.QueryRow("SELECT credential_hash FROM devices WHERE id='legacy'").Scan(&hash); err != nil || !bytes.Equal(hash, make([]byte, 32)) {
+		t.Fatal("v3 credential not preserved")
+	}
+	var count int
+	if err := reopened.db.QueryRow("SELECT count(*) FROM operators").Scan(&count); err != nil || count != 1 {
+		t.Fatal("operator lost in v4 migration")
 	}
 }

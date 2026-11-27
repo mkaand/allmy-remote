@@ -87,6 +87,7 @@ func (d *DeviceRegistry) register(mux *http.ServeMux, auth *Auth) {
 	mux.HandleFunc("POST /api/v1/enrollment/exchange", d.exchange)
 	mux.HandleFunc("POST /api/v1/devices/{id}/revoke", operator(true, d.revoke))
 	mux.HandleFunc("DELETE /api/v1/devices/{id}", operator(true, d.deleteRevoked))
+	mux.HandleFunc("PATCH /api/v1/devices/{id}", operator(true, d.editMetadata))
 	mux.HandleFunc("GET /api/v1/device/channel", d.channel)
 }
 
@@ -291,6 +292,7 @@ type deviceView struct {
 	ID       string `json:"id"`
 	Name     string `json:"name"`
 	Platform string `json:"platform"`
+	Icon     string `json:"icon"`
 	Status   string `json:"status"`
 	LastSeen *int64 `json:"last_seen"`
 }
@@ -307,7 +309,7 @@ func (d *DeviceRegistry) list(w http.ResponseWriter, r *http.Request) {
 func (d *DeviceRegistry) snapshot(ctx context.Context) ([]deviceView, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	rows, err := d.store.db.QueryContext(ctx, "SELECT id,name,platform,last_seen,revoked_at FROM devices ORDER BY created_at,id LIMIT 100")
+	rows, err := d.store.db.QueryContext(ctx, "SELECT id,name,platform,icon,last_seen,revoked_at FROM devices ORDER BY created_at,id LIMIT 100")
 	if err != nil {
 		return nil, err
 	}
@@ -316,7 +318,7 @@ func (d *DeviceRegistry) snapshot(ctx context.Context) ([]deviceView, error) {
 	for rows.Next() {
 		var v deviceView
 		var seen, revoked sql.NullInt64
-		if err = rows.Scan(&v.ID, &v.Name, &v.Platform, &seen, &revoked); err != nil {
+		if err = rows.Scan(&v.ID, &v.Name, &v.Platform, &v.Icon, &seen, &revoked); err != nil {
 			return nil, err
 		}
 		v.Status = "offline"
@@ -368,6 +370,52 @@ func (d *DeviceRegistry) revokeDevice(ctx context.Context, id string) (bool, err
 		delete(d.active, id)
 	}
 	return true, nil
+}
+
+func validIcon(icon string) bool {
+	switch icon {
+	case "auto", "desktop", "laptop", "macbook", "mac", "linux", "windows", "mini-pc", "server", "raspberry-pi", "phone", "tablet":
+		return true
+	default:
+		return false
+	}
+}
+
+// editMetadata changes presentation only; identity, platform and access stay unchanged.
+func (d *DeviceRegistry) editMetadata(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	if len(id) != 22 {
+		status(w, 404, "not_found")
+		return
+	}
+	var input struct {
+		Name string `json:"name"`
+		Icon string `json:"icon"`
+	}
+	if !decodeRequest(w, r, &input) {
+		return
+	}
+	if !validName(input.Name) || !validIcon(input.Icon) {
+		status(w, 400, "invalid_metadata")
+		return
+	}
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	result, err := d.store.db.ExecContext(r.Context(), "UPDATE devices SET name=?, icon=? WHERE id=? AND revoked_at IS NULL", input.Name, input.Icon, id)
+	if err != nil {
+		status(w, 503, "unavailable")
+		return
+	}
+	n, err := result.RowsAffected()
+	if err != nil {
+		status(w, 503, "unavailable")
+		return
+	}
+	if n != 1 {
+		status(w, 409, "device_revoked_or_missing")
+		return
+	}
+	status(w, 200, "updated")
 }
 
 // deleteRevoked permanently removes only a previously revoked registry entry.

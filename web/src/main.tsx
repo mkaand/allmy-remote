@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import { api, APIError, message, type Device, type Grant } from "./api";
 import { AllMyThemeControls } from "./AllMyThemeControls";
 import { useThemeAdapter } from "./theme";
+import { DeviceIcon, iconOptions } from "./DeviceIcon";
 
 type SessionState = "checking" | "signed-out" | "signed-in" | "unavailable";
 
@@ -42,13 +43,21 @@ function Login({ onLogin }: {onLogin: () => void}) {
   </section>;
 }
 
-function DeviceCard({ device, onRevoke, onDelete, busy }: {device: Device; onRevoke: (id: string) => void; onDelete: (id: string) => void; busy: boolean}) {
+function DeviceCard({ device, onRevoke, onDelete, onEdit, busy }: {device: Device; onRevoke: (id: string) => void; onDelete: (id: string) => void; onEdit: (id: string, name: string, icon: string) => Promise<boolean>; busy: boolean}) {
   const [confirm, setConfirm] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [draftName, setDraftName] = useState(device.name);
+  const [draftIcon, setDraftIcon] = useState(device.icon);
+  async function save(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (busy || device.status === "revoked") return;
+    if (await onEdit(device.id, draftName.trim(), draftIcon)) setEditing(false);
+  }
   const lastSeen = device.last_seen === null ? "Never" : new Date(device.last_seen * 1000).toLocaleString();
   return <article className="panel device" aria-label={device.name}>
     <div className="device-head">
-      <div className="device-icon" aria-hidden="true">▣</div>
+      <div className="device-icon"><DeviceIcon value={device.icon} platform={device.platform} /></div>
       <div className="device-name"><h3>{device.name}</h3><p>{device.platform === "windows" ? "Windows · Agent preview" : "Mock device · Preview"}</p></div>
       <span className={"status " + device.status}><span aria-hidden="true" className="dot" />{device.status}</span>
     </div>
@@ -62,11 +71,26 @@ function DeviceCard({ device, onRevoke, onDelete, busy }: {device: Device; onRev
       <button disabled title="Planned">Terminal</button>
     </div>
     </>}
+    {device.status !== "revoked" && (editing ?
+      <form className="device-editor" onSubmit={save}>
+        <label>Device name<input required maxLength={96} value={draftName} onChange={e => setDraftName(e.target.value)} disabled={busy} /></label>
+        <fieldset disabled={busy}><legend>Device icon</legend>
+          <div className="icon-options">{iconOptions.map(([value, label]) =>
+            <label className="icon-option" key={value}>
+              <input type="radio" name={"icon-" + device.id} value={value} checked={draftIcon === value} onChange={() => setDraftIcon(value)} />
+              <DeviceIcon value={value} platform={device.platform} /><span>{label}</span>
+            </label>
+          )}</div>
+        </fieldset>
+        <div className="actions"><button className="primary" type="submit" disabled={busy || !draftName.trim() || new TextEncoder().encode(draftName.trim()).length > 96}>Save changes</button>
+          <button type="button" disabled={busy} onClick={() => setEditing(false)}>Cancel edit</button></div>
+      </form> :
+      <button className="quiet" disabled={busy || confirm} onClick={() => { setDraftName(device.name); setDraftIcon(device.icon); setEditing(true); }}>Edit device</button>)}
     {device.status !== "revoked" ? (confirm ?
       <div className="confirm"><p>Revoke this device and disconnect it?</p>
         <button className="danger" disabled={busy} onClick={() => { setConfirm(false); onRevoke(device.id); }}>Confirm revoke</button>
         <button disabled={busy} onClick={() => setConfirm(false)}>Cancel</button></div> :
-      <button className="quiet" disabled={busy} onClick={() => setConfirm(true)}>Revoke device</button>) : confirmDelete ?
+      <button className="quiet" disabled={busy || editing} onClick={() => setConfirm(true)}>Revoke device</button>) : confirmDelete ?
       <div className="confirm"><p>Permanently delete this revoked device? Its old credential will remain unusable.</p>
         <button className="danger" disabled={busy} onClick={() => { setConfirmDelete(false); onDelete(device.id); }}>Confirm delete</button>
         <button disabled={busy} onClick={() => setConfirmDelete(false)}>Cancel</button></div> :
@@ -180,6 +204,17 @@ function Dashboard({ onUnauthorized }: {onUnauthorized: () => void}) {
     finally { if (alive.current) setBusy(false); }
   }
 
+  async function editDevice(id: string, name: string, icon: string) {
+    if (busy) return false;
+    setBusy(true);
+    try {
+      await api.editDevice(id, name, icon);
+      await refresh();
+      return true;
+    } catch (err) { handleError(err); return false; }
+    finally { if (alive.current) setBusy(false); }
+  }
+
   async function copy() {
     if (!grant || grant.expires_at <= Date.now() / 1000) return;
     try {
@@ -219,7 +254,7 @@ function Dashboard({ onUnauthorized }: {onUnauthorized: () => void}) {
       {error && <p className="error panel" role="alert">{error}{devices !== null ? " Displayed data may be stale." : ""}</p>}
       {devices === null ? <p role="status">Loading devices…</p> : devices.length === 0 ?
         <div className="panel empty"><h3>No devices enrolled</h3><p>Generate a grant to connect an authorized agent.</p></div> :
-        <div className="device-grid">{devices.map(d => <DeviceCard key={d.id} device={d} onRevoke={revoke} onDelete={deleteDevice} busy={busy} />)}</div>}
+        <div className="device-grid">{devices.map(d => <DeviceCard key={d.id} device={d} onRevoke={revoke} onDelete={deleteDevice} onEdit={editDevice} busy={busy} />)}</div>}
     </section>
     <section className="panel clipboard"><h2>Universal clipboard</h2><p>Planned · Not enabled. No clipboard data is collected.</p></section>
   </>;
@@ -272,7 +307,7 @@ function App() {
     {state === "unavailable" && <section className="panel"><p role="alert">Server unavailable.</p><button onClick={() => void checkSession()}>Retry</button></section>}
     {state === "signed-out" && <Login onLogin={signedIn} />}
     {state === "signed-in" && <Dashboard onUnauthorized={unauthorized} />}
-    <footer>AllMy Remote · Sprint 2C1 · Development preview</footer>
+    <footer>AllMy Remote · Sprint 2C · Development preview</footer>
   </main>;
 }
 

@@ -2,6 +2,7 @@ export type Device = {
   id: string;
   name: string;
   platform: "mock" | "windows";
+  icon: string;
   status: "online" | "offline" | "revoked";
   last_seen: number | null;
 };
@@ -37,6 +38,7 @@ export const api = {
   devices: (signal?: AbortSignal) => request<Device[]>("/devices", "GET", undefined, signal),
   grant: (name: string) => request<Grant>("/enrollment/grants", "POST", {name}),
   revoke: (id: string) => request<{status: string}>("/devices/" + encodeURIComponent(id) + "/revoke", "POST"),
+  editDevice: (id: string, name: string, icon: string) => request<{status: string}>("/devices/" + encodeURIComponent(id), "PATCH", {name, icon}),
   deleteDevice: (id: string) => request<{status: string}>("/devices/" + encodeURIComponent(id), "DELETE"),
 };
 

@@ -101,6 +101,7 @@ def main():
     device, _ = request("/api/v1/enrollment/exchange", "POST", {"grant": grant["grant"]}, want=201)
     request("/api/v1/enrollment/exchange", "POST", {"grant": grant["grant"]}, want=401)
     device_id = device["id"]
+    request("/api/v1/devices/" + device_id, "PATCH", {"name": "CI renamed mock", "icon": "laptop"}, cookie=cookie, origin=ORIGIN)
     request("/api/v1/devices/" + device_id + "/revoke", "POST", cookie=cookie, origin=ORIGIN)
 
     run("stop", "server")
@@ -115,6 +116,7 @@ def main():
     assert len(devices) == 1
     assert devices[0]["id"] == device_id and devices[0]["status"] == "revoked"
     assert devices[0]["platform"] == "mock"
+    assert devices[0]["name"] == "CI renamed mock" and devices[0]["icon"] == "laptop"
     assert "credential" not in devices[0] and "credential_hash" not in devices[0]
     request("/api/v1/session/logout", "POST", cookie=cookie, origin=ORIGIN)
     request("/api/v1/devices", cookie=cookie, want=401)

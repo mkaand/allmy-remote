@@ -22,3 +22,5 @@ Use the approved multi-device logo in the shared login/dashboard header and the 
 ## Sprint 2C1 polish
 
 Light and dark variants share the same logo geometry and transparent background; only the dark palette is adjusted for contrast. Theme resolution chooses the asset. Revoked device cards omit unavailable remote actions and expose a confirmed permanent delete action. Online and offline authorized devices must be revoked before deletion.
+
+Device metadata editor: explicitly save a display name and choose from local vector icon presets. Default Automatic uses the existing declared platform. The selected visual icon is not a claim of platform support. Edits are server-persisted and do not change device credentials or capabilities. Revoked devices cannot be edited.

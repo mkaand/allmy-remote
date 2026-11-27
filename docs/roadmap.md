@@ -4,7 +4,7 @@
 | --- | --- | --- |
 | 0 | Architecture, threat model, technical specification, repository bootstrap | Design baseline complete |
 | 1 | Core, web dashboard skeleton, authenticated device enrollment | In progress (1E deployment candidate and acceptance) |
-| 2 | Windows agent and telemetry | 2A branding complete; 2B presence-only agent candidate, hardware acceptance pending |
+| 2 | Windows agent and telemetry | 2A branding and 2B presence-only agent; 2C dashboard customization, Windows GUI/tray, optional user logon startup, telemetry and agent access policy |
 | 3 | Windows view-only desktop, then authorized input | Planned |
 | 4 | Universal clipboard: text first, then richer formats | Planned |
 | 5 | Zorin OS native agent | Planned |

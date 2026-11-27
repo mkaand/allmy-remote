@@ -38,3 +38,7 @@ Before upgrading, stop the preview and back up its private SQLite volume, verify
 ## Sprint 2C1 acceptance
 
 Verify transparent branding in light, dark and automatic themes on desktop and mobile. Delete only an explicitly revoked test entry after confirmation; cancel preserves the record. Active and offline authorized devices must reject deletion. Verify the deleted credential still cannot connect, the registry slot is freed, and an unrelated online device remains connected. No database migration is required for this increment.
+
+## Device customization acceptance
+
+Back up schema 3 before migration to schema 4. Verify existing IDs, names, platforms, credentials and revoked state are retained with Automatic icon default. Rename an online device and select Mini PC or another icon; verify live connection remains authorized, refresh and reload retain both values, cancel does not modify metadata, and revoked or unauthorized requests cannot edit. Test persistence after restart and responsive keyboard-accessible icon selection.

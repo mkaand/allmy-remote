@@ -12,7 +12,7 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-const schemaVersion = 3
+const schemaVersion = 4
 
 type Store struct {
 	db *sql.DB
@@ -106,6 +106,14 @@ func (s *Store) initialize(ctx context.Context) error {
 			return err
 		}
 		if _, err = tx.ExecContext(ctx, "PRAGMA user_version=3"); err != nil {
+			return err
+		}
+		fallthrough
+	case 3:
+		if _, err = tx.ExecContext(ctx, "ALTER TABLE devices ADD COLUMN icon TEXT NOT NULL DEFAULT 'auto' CHECK (icon IN ('auto','desktop','laptop','macbook','mac','linux','windows','mini-pc','server','raspberry-pi','phone','tablet'))"); err != nil {
+			return err
+		}
+		if _, err = tx.ExecContext(ctx, "PRAGMA user_version=4"); err != nil {
 			return err
 		}
 	case schemaVersion:

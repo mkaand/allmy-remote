@@ -26,3 +26,7 @@ Light and dark variants share the same logo geometry and transparent background;
 Device metadata editor: explicitly save a display name and choose from local vector icon presets. Default Automatic uses the existing declared platform. The selected visual icon is not a claim of platform support. Edits are server-persisted and do not change device credentials or capabilities. Revoked devices cannot be edited.
 
 Native Windows GUI preview: standard Win32 controls and notification area, fixed system-DPI-scaled layout. The GUI shows server origin and live presence status without exposing credentials. Dashboard display names and hardware telemetry are not yet part of the agent protocol. Explicit Exit differs from minimize/close-to-tray. Use the operating system's native control appearance; custom GUI dark mode is not part of this increment.
+
+## Native GUI modernization
+
+Use the dashboard's blue-accent light/dark palette, Segoe UI Variable, card layout, native owner-draw buttons and visual switches. Light/Dark/Auto and minimize-to-tray preferences are stored in the current user's registry; Auto follows Windows application theme. The paired view hides the grant and edit controls; the local hostname is displayed until a future protocol conveys the dashboard name. Auto-Start remains opt-in and can be changed during a presence session. No browser engine or new runtime dependency.

@@ -33,6 +33,10 @@ const (
 	idStartup = 105
 	idExit    = 106
 	idOpen    = 107
+	idTray    = 108
+	idLight   = 109
+	idAuto    = 110
+	idDark    = 111
 )
 
 type windowClass struct {
@@ -90,6 +94,7 @@ type nativeUI struct {
 	cancel                     context.CancelFunc
 	mu                         sync.Mutex
 	event                      uiEvent
+	appearance                 appearanceUI
 }
 
 var currentUI *nativeUI
@@ -149,29 +154,39 @@ func (u *nativeUI) control(class, title string, style uint32, x, y, w, h, id int
 }
 
 func (u *nativeUI) build() error {
-	const button = 0x00010000
-	const edit = 0x00810080 // border, tab stop, horizontal scroll
-	u.control("STATIC", "AllMy Remote | Windows agent", 0, 18, 12, 464, 24, 0)
-	u.control("STATIC", "Presence only. No remote control or clipboard.", 0, 18, 41, 464, 22, 0)
-	u.control("STATIC", "HTTPS server", 0, 18, 74, 464, 20, 0)
-	u.server = u.control("EDIT", "", edit, 18, 96, 464, 28, 0)
-	u.control("STATIC", "One-time enrollment grant", 0, 18, 136, 464, 20, 0)
-	u.grant = u.control("EDIT", "", edit|0x20, 18, 158, 464, 28, 0)
-	u.pair = u.control("BUTTON", "Pair device", button, 18, 198, 148, 32, idPair)
-	u.connect = u.control("BUTTON", "Connect", button, 176, 198, 148, 32, idConnect)
-	u.stop = u.control("BUTTON", "Disconnect", button, 334, 198, 148, 32, idStop)
-	u.status = u.control("STATIC", "Not connected", 0, 18, 242, 464, 44, 0)
-	u.startup = u.control("BUTTON", "Start with Windows (current user)", button|3, 18, 292, 464, 28, idStartup)
-	u.control("STATIC", "Close or minimize to tray. Exit stops the agent.", 0, 18, 326, 464, 22, 0)
-	u.unpair = u.control("BUTTON", "Unpair", button, 18, 360, 148, 32, idUnpair)
-	u.exit = u.control("BUTTON", "Exit", button, 334, 360, 148, 32, idExit)
-	for _, h := range []uintptr{u.server, u.grant, u.pair, u.connect, u.stop, u.status, u.startup, u.unpair, u.exit} {
+	const button = 0x0001000b // native keyboard-accessible owner-draw button
+	const edit = 0x00810080
+	p := &u.appearance
+	p.title = u.control("STATIC", "AllMy Remote", 0, 82, 17, 392, 34, 0)
+	p.subtitle = u.control("STATIC", "Windows Agent", 0, 82, 51, 392, 24, 0)
+	p.device = u.control("STATIC", "This Windows device", 0, 36, 112, 424, 30, 0)
+	u.status = u.control("STATIC", "Not connected", 0, 52, 147, 408, 42, 0)
+	p.serverLabel = u.control("STATIC", "HTTPS server", 0, 36, 194, 424, 22, 0)
+	u.server = u.control("EDIT", "", edit, 36, 218, 424, 30, 0)
+	p.origin = u.control("STATIC", "", 0, 36, 218, 424, 30, 0)
+	p.grantLabel = u.control("STATIC", "One-time enrollment grant", 0, 36, 256, 424, 20, 0)
+	u.grant = u.control("EDIT", "", edit|0x20, 36, 278, 424, 30, 0)
+	u.pair = u.control("BUTTON", "Pair device", button, 36, 320, 424, 42, idPair)
+	u.connect = u.control("BUTTON", "Connect", button, 36, 264, 424, 42, idConnect)
+	u.stop = u.control("BUTTON", "Disconnect", button, 36, 264, 424, 42, idStop)
+	p.preferences = u.control("STATIC", "Preferences", 0, 22, 370, 452, 25, 0)
+	u.startup = u.control("BUTTON", "Start with Windows", button, 22, 397, 452, 48, idStartup)
+	p.trayToggle = u.control("BUTTON", "Minimize to tray", button, 22, 450, 452, 48, idTray)
+	p.themeLabel = u.control("STATIC", "Appearance", 0, 22, 512, 132, 28, 0)
+	p.light = u.control("BUTTON", "Light", button, 156, 507, 100, 36, idLight)
+	p.auto = u.control("BUTTON", "Auto", button, 262, 507, 100, 36, idAuto)
+	p.dark = u.control("BUTTON", "Dark", button, 368, 507, 106, 36, idDark)
+	u.unpair = u.control("BUTTON", "Unpair device", button, 22, 557, 220, 36, idUnpair)
+	u.exit = u.control("BUTTON", "Exit", button, 254, 557, 220, 36, idExit)
+	p.footer = u.control("STATIC", "Development preview | Presence only", 1, 22, 605, 452, 24, 0)
+	for _, h := range []uintptr{u.server, u.grant, u.pair, u.connect, u.stop, u.status, u.startup, u.unpair, u.exit, p.title, p.subtitle, p.device, p.serverLabel, p.origin, p.grantLabel, p.preferences, p.trayToggle, p.themeLabel, p.light, p.auto, p.dark, p.footer} {
 		if h == 0 {
 			return errors.New("cannot create agent controls")
 		}
 	}
 	user32.NewProc("SendMessageW").Call(u.server, 0x00c5, 512, 0)
 	user32.NewProc("SendMessageW").Call(u.grant, 0x00c5, 128, 0)
+	u.initAppearance()
 	return nil
 }
 
@@ -185,7 +200,9 @@ func (u *nativeUI) notify(action uintptr, text string) bool {
 }
 
 func (u *nativeUI) report(text string) {
+	u.appearance.statusText = text
 	setText(u.status, text)
+	u.repaint()
 	if u.tray {
 		u.notify(1, text)
 	}
@@ -193,18 +210,25 @@ func (u *nativeUI) report(text string) {
 
 func (u *nativeUI) refresh() {
 	paired := u.state.Valid()
+	p := &u.appearance
+	for _, h := range []uintptr{u.server, u.grant, p.grantLabel, u.pair} {
+		showControl(h, !u.hasState)
+	}
+	showControl(p.origin, u.hasState)
+	setText(p.origin, u.state.Origin)
+	u.layoutAppearance()
+	showControl(u.connect, u.hasState && !u.busy)
+	showControl(u.stop, u.hasState && u.busy)
+	showControl(u.unpair, u.hasState)
 	enable(u.server, !u.busy && !u.hasState)
 	enable(u.grant, !u.busy && !u.hasState)
 	enable(u.pair, !u.busy && !u.hasState)
 	enable(u.connect, !u.busy && paired)
 	enable(u.stop, u.busy && u.cancel != nil && !u.exiting)
 	enable(u.unpair, !u.busy && u.hasState)
-	enable(u.startup, !u.busy && u.startReadable && (paired || u.startEnabled))
-	checked := uintptr(0)
-	if u.startEnabled {
-		checked = 1
-	}
-	user32.NewProc("SendMessageW").Call(u.startup, 0x00f1, checked, 0)
+	enable(u.startup, u.startReadable && !u.exiting && (paired || u.startEnabled))
+	enable(p.trayToggle, u.tray)
+	u.repaint()
 }
 
 func (u *nativeUI) reload() {
@@ -332,8 +356,18 @@ func (u *nativeUI) command(id int) {
 			return
 		}
 		u.reload()
+	case idTray:
+		if u.tray {
+			u.changePreference(u.appearance.mode, !u.appearance.minimize)
+		}
+	case idLight:
+		u.changePreference("light", u.appearance.minimize)
+	case idAuto:
+		u.changePreference("auto", u.appearance.minimize)
+	case idDark:
+		u.changePreference("dark", u.appearance.minimize)
 	case idStartup:
-		if u.busy || !u.startReadable {
+		if u.exiting || !u.startReadable {
 			return
 		}
 		want := !u.startEnabled
@@ -346,7 +380,7 @@ func (u *nativeUI) command(id int) {
 			return
 		}
 		if err := setStartup(want); err != nil {
-			u.report(err.Error())
+			alert(u.hwnd, err.Error(), false)
 		} else {
 			u.startEnabled = want
 		}
@@ -385,20 +419,33 @@ func windowProc(hwnd uintptr, msg uint32, wparam, lparam uintptr) uintptr {
 	u := currentUI
 	if u != nil && hwnd == u.hwnd {
 		switch msg {
+		case 0x000f: // WM_PAINT
+			u.paint()
+			return 0
+		case 0x0014: // WM_ERASEBKGND
+			return 1
+		case 0x002b: // WM_DRAWITEM
+			if u.drawControl(lparam) {
+				return 1
+			}
+		case 0x0133, 0x0138: // WM_CTLCOLOREDIT / WM_CTLCOLORSTATIC
+			return u.controlColor(msg, wparam, lparam)
+		case 0x001a, 0x031a: // setting or theme change
+			u.applyAppearance()
 		case wmCommand:
 			if wparam>>16 == 0 {
 				u.command(int(wparam & 0xffff))
 			}
 			return 0
 		case wmClose:
-			if u.tray {
+			if u.tray && u.appearance.minimize {
 				show(hwnd, false)
 			} else {
 				u.quit()
 			}
 			return 0
 		case wmSystem:
-			if wparam&0xfff0 == 0xf020 && u.tray {
+			if wparam&0xfff0 == 0xf020 && u.tray && u.appearance.minimize {
 				show(hwnd, false)
 				return 0
 			}
@@ -442,6 +489,7 @@ func windowProc(hwnd uintptr, msg uint32, wparam, lparam uintptr) uintptr {
 				if !u.tray {
 					show(hwnd, true)
 				}
+				u.refresh()
 				return 0
 			}
 		}
@@ -479,7 +527,10 @@ func runGUI(auto bool) error {
 	font, _, _ := gdi32.NewProc("GetStockObject").Call(17)
 	u := &nativeUI{path: path, instance: instance, icon: icon, font: font, dpi: int(dpi)}
 	currentUI = u
-	defer func() { currentUI = nil }()
+	defer func() {
+		currentUI = nil
+		u.releaseAppearance()
+	}()
 	name := wide("AllMyRemoteAgentWindow")
 	wc := windowClass{Proc: windows.NewCallback(windowProc), Instance: instance, Icon: icon, Cursor: cursor, Background: 6, ClassName: name, SmallIcon: icon}
 	wc.Size = uint32(unsafe.Sizeof(wc))
@@ -491,7 +542,7 @@ func runGUI(auto bool) error {
 	taskbar, _, _ := user32.NewProc("RegisterWindowMessageW").Call(uintptr(unsafe.Pointer(wide("TaskbarCreated"))))
 	u.taskbar = uint32(taskbar)
 	// Fixed client layout; system DPI scaling keeps the controls readable.
-	hwnd, _, _ := user32.NewProc("CreateWindowExW").Call(0, uintptr(unsafe.Pointer(name)), uintptr(unsafe.Pointer(wide("AllMy Remote"))), 0x00ca0000, 0x80000000, 0x80000000, 520*dpi/96, 455*dpi/96, 0, 0, instance, 0)
+	hwnd, _, _ := user32.NewProc("CreateWindowExW").Call(0, uintptr(unsafe.Pointer(name)), uintptr(unsafe.Pointer(wide("AllMy Remote"))), 0x00ca0000, 0x80000000, 0x80000000, 520*dpi/96, 675*dpi/96, 0, 0, instance, 0)
 	if hwnd == 0 {
 		return errors.New("cannot create agent window")
 	}
@@ -502,7 +553,7 @@ func runGUI(auto bool) error {
 	}
 	u.tray = u.notify(0, "Open agent")
 	u.reload()
-	if !auto || !u.tray || !u.state.Valid() {
+	if !auto || !u.tray || !u.appearance.minimize || !u.state.Valid() {
 		show(hwnd, true)
 	}
 	if u.state.Valid() {

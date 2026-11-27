@@ -26,3 +26,18 @@ func TestEmbeddedApplicationIcon(t *testing.T) {
 	}
 	user32.NewProc("DestroyIcon").Call(icon)
 }
+
+func TestAppearanceModes(t *testing.T) {
+	for _, mode := range []string{"auto", "light", "dark"} {
+		if !validTheme(mode) {
+			t.Fatal("valid theme rejected")
+		}
+	}
+	if validTheme("invalid") || validTheme("") {
+		t.Fatal("invalid theme accepted")
+	}
+	light, dark := themeColors(false), themeColors(true)
+	if light.bg == dark.bg || light.text == dark.text || light.accent == dark.accent {
+		t.Fatal("theme palettes must be distinct")
+	}
+}

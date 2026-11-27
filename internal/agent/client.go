@@ -11,12 +11,16 @@ import (
 	"fmt"
 	"io"
 	randv2 "math/rand/v2"
+	"net"
 	"net/http"
+	"net/http/httptrace"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/coder/websocket"
+	"github.com/mkaand/allmy-remote/internal/telemetry"
 )
 
 type State struct {
@@ -91,19 +95,20 @@ func Enroll(ctx context.Context, origin, grant string, base *http.Client) (State
 }
 
 type message struct {
-	Version       int    `json:"version"`
-	Type          string `json:"type"`
-	ID            string `json:"id"`
-	CorrelationID string `json:"correlation_id,omitempty"`
+	Version       int               `json:"version"`
+	Type          string            `json:"type"`
+	ID            string            `json:"id"`
+	CorrelationID string            `json:"correlation_id,omitempty"`
+	Payload       *telemetry.Sample `json:"payload,omitempty"`
 }
 
-func exchange(ctx context.Context, conn *websocket.Conn, kind string) error {
+func exchange(ctx context.Context, conn *websocket.Conn, kind string, sample *telemetry.Sample) error {
 	var raw [16]byte
 	if _, err := rand.Read(raw[:]); err != nil {
 		return errors.New("message ID unavailable")
 	}
 	id := base64.RawURLEncoding.EncodeToString(raw[:])
-	body, _ := json.Marshal(message{Version: 1, Type: kind, ID: id})
+	body, _ := json.Marshal(message{Version: 1, Type: kind, ID: id, Payload: sample})
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 	if err := conn.Write(ctx, websocket.MessageText, body); err != nil {
@@ -116,17 +121,30 @@ func exchange(ctx context.Context, conn *websocket.Conn, kind string) error {
 	var ack message
 	dec := json.NewDecoder(bytes.NewReader(data))
 	dec.DisallowUnknownFields()
-	if dec.Decode(&ack) != nil || dec.Decode(new(any)) != io.EOF || ack.Version != 1 || ack.Type != kind+"_ack" || ack.ID != id || ack.CorrelationID != id {
+	if dec.Decode(&ack) != nil || dec.Decode(new(any)) != io.EOF || ack.Version != 1 || ack.Type != kind+"_ack" || ack.ID != id || ack.CorrelationID != id || ack.Payload != nil {
 		return errors.New("invalid channel acknowledgement")
 	}
 	return nil
 }
 
-func session(ctx context.Context, s State, base *http.Client, online func()) error {
+func session(ctx context.Context, s State, base *http.Client, online func(), collect func() telemetry.Metrics) error {
 	headers := http.Header{"Authorization": {"Bearer " + s.Credential}}
 	dialCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	var localIP string
+	var ipMu sync.Mutex
+	var protocols []string
+	if collect != nil {
+		protocols = []string{telemetry.Protocol}
+		dialCtx = httptrace.WithClientTrace(dialCtx, &httptrace.ClientTrace{GotConn: func(info httptrace.GotConnInfo) {
+			if addr, ok := info.Conn.LocalAddr().(*net.TCPAddr); ok {
+				ipMu.Lock()
+				localIP = telemetry.Address(addr.IP.String())
+				ipMu.Unlock()
+			}
+		}})
+	}
 	conn, response, err := websocket.Dial(dialCtx, "wss"+strings.TrimPrefix(s.Origin, "https")+"/api/v1/device/channel", &websocket.DialOptions{
-		HTTPClient: client(base), HTTPHeader: headers,
+		HTTPClient: client(base), HTTPHeader: headers, Subprotocols: protocols,
 	})
 	cancel()
 	if err != nil {
@@ -137,10 +155,14 @@ func session(ctx context.Context, s State, base *http.Client, online func()) err
 	}
 	defer conn.CloseNow()
 	conn.SetReadLimit(64 << 10)
-	if err := exchange(ctx, conn, "hello"); err != nil {
+	if err := exchange(ctx, conn, "hello", nil); err != nil {
 		return err
 	}
 	online()
+	negotiated := collect != nil && conn.Subprotocol() == telemetry.Protocol
+	if negotiated {
+		_ = collect() // Establish the CPU counter baseline.
+	}
 	ticker := time.NewTicker(15 * time.Second)
 	defer ticker.Stop()
 	for {
@@ -148,7 +170,14 @@ func session(ctx context.Context, s State, base *http.Client, online func()) err
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-ticker.C:
-			if err := exchange(ctx, conn, "heartbeat"); err != nil {
+			var sample *telemetry.Sample
+			if negotiated {
+				ipMu.Lock()
+				address := localIP
+				ipMu.Unlock()
+				sample = &telemetry.Sample{Metrics: collect(), InternalIP: address}
+			}
+			if err := exchange(ctx, conn, "heartbeat", sample); err != nil {
 				return err
 			}
 		}
@@ -157,6 +186,11 @@ func session(ctx context.Context, s State, base *http.Client, online func()) err
 
 // Run never executes inbound commands. It accepts only acknowledgements to its own messages.
 func Run(ctx context.Context, s State, base *http.Client, report func(string)) error {
+	return RunWithTelemetry(ctx, s, base, report, nil)
+}
+
+// RunWithTelemetry sends measurements only when the server negotiates support.
+func RunWithTelemetry(ctx context.Context, s State, base *http.Client, report func(string), collect func() telemetry.Metrics) error {
 	if !s.Valid() {
 		return errors.New("invalid saved enrollment")
 	}
@@ -165,7 +199,7 @@ func Run(ctx context.Context, s State, base *http.Client, report func(string)) e
 		err := session(ctx, s, base, func() {
 			delay = time.Second
 			report("Connected; heartbeat only.")
-		})
+		}, collect)
 		if ctx.Err() != nil {
 			break
 		}

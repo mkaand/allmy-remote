@@ -187,7 +187,7 @@ func run() error {
 			return err
 		}
 		fmt.Println("AllMy Remote agent: presence only. Ctrl+C stops the connection.")
-		return agent.Run(ctx, s, http.DefaultClient, func(message string) { fmt.Println(message) })
+		return agent.RunWithTelemetry(ctx, s, http.DefaultClient, func(message string) { fmt.Println(message) }, windowsCollector())
 	case "unpair":
 		if err := os.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
 			return errors.New("cannot remove local enrollment")

@@ -43,7 +43,37 @@ function Login({ onLogin }: {onLogin: () => void}) {
   </section>;
 }
 
-function DeviceCard({ device, onRevoke, onDelete, onEdit, busy }: {device: Device; onRevoke: (id: string) => void; onDelete: (id: string) => void; onEdit: (id: string, name: string, icon: string) => Promise<boolean>; busy: boolean}) {
+function IPField({id, kind, available}: {id: string; kind: "internal" | "external"; available: boolean}) {
+  const [value, setValue] = useState("");
+  const [pending, setPending] = useState(false);
+  const abort = useRef<AbortController | null>(null);
+  useEffect(() => {
+    setValue("");
+    setPending(false);
+    return () => abort.current?.abort();
+  }, [id, kind, available]);
+  async function reveal() {
+    if (value) { setValue(""); return; }
+    if (!available || pending) return;
+    const controller = new AbortController();
+    abort.current = controller;
+    setPending(true);
+    try {
+      const result = await api.revealIP(id, kind, controller.signal);
+      if (!controller.signal.aborted) setValue(result.ip);
+    } catch { /* Unavailable or expired: remain masked. */ }
+    finally { if (!controller.signal.aborted) setPending(false); }
+  }
+  return <div className="ip-field"><span>{kind === "internal" ? "Internal IP" : "External IP"}</span>
+    <code>{available ? value || "••••••••" : "—"}</code>
+    <button type="button" disabled={!available || pending} aria-label={(value ? "Hide " : "Reveal ") + kind + " IP"} onClick={() => void reveal()}>
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/>{value && <path d="M3 3l18 18"/>}</svg>
+    </button>
+    {available && value && <button type="button" onClick={() => void navigator.clipboard.writeText(value).catch(() => {})}>Copy</button>}
+  </div>;
+}
+
+function DeviceCard({ device, onRevoke, onDelete, onEdit, busy, revealEpoch }: {device: Device; onRevoke: (id: string) => void; onDelete: (id: string) => void; onEdit: (id: string, name: string, icon: string) => Promise<boolean>; busy: boolean; revealEpoch: number}) {
   const [confirm, setConfirm] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -63,9 +93,10 @@ function DeviceCard({ device, onRevoke, onDelete, onEdit, busy }: {device: Devic
     </div>
     <p className="last-seen">Last seen: {lastSeen}</p>
     {device.status !== "revoked" && <><dl className="metrics">
-      <div><dt>CPU</dt><dd>—</dd></div><div><dt>RAM</dt><dd>—</dd></div><div><dt>Disk</dt><dd>—</dd></div>
+      <div><dt>CPU</dt><dd>{device.metrics?.cpu_percent == null ? "—" : device.metrics.cpu_percent + "%"}</dd></div><div><dt>RAM</dt><dd>{device.metrics?.ram_percent == null ? "—" : device.metrics.ram_percent + "%"}</dd></div><div><dt>Disk</dt><dd>{device.metrics?.disk_percent == null ? "—" : device.metrics.disk_percent + "%"}</dd></div>
     </dl>
-    <p className="small">Telemetry and remote access are not available in this preview.</p>
+    <p className="small">Live host utilization · System drive · Remote access not enabled</p>
+    <div className="device-ips" key={revealEpoch}><IPField id={device.id} kind="internal" available={device.status === "online" && !!device.internal_ip_available}/><IPField id={device.id} kind="external" available={device.status === "online" && !!device.external_ip_available}/></div>
     <div className="actions">
       <button disabled title="Planned">Desktop</button><button disabled title="Planned">Files</button>
       <button disabled title="Planned">Terminal</button>
@@ -100,6 +131,7 @@ function DeviceCard({ device, onRevoke, onDelete, onEdit, busy }: {device: Devic
 
 function Dashboard({ onUnauthorized }: {onUnauthorized: () => void}) {
   const [devices, setDevices] = useState<Device[] | null>(null);
+  const [revealEpoch, setRevealEpoch] = useState(0);
   const [error, setError] = useState("");
   const [name, setName] = useState("");
   const [grant, setGrant] = useState<Grant | null>(null);
@@ -250,11 +282,11 @@ function Dashboard({ onUnauthorized }: {onUnauthorized: () => void}) {
     </section>
     <section aria-labelledby="devices-title">
       <div className="section-head"><div><h2 id="devices-title">Devices</h2><p>Live registry · refreshes every 10 seconds while visible</p></div>
-        <button onClick={() => void refresh()}>Refresh</button></div>
+        <button onClick={() => { setRevealEpoch(n => n + 1); void refresh(); }}>Refresh</button></div>
       {error && <p className="error panel" role="alert">{error}{devices !== null ? " Displayed data may be stale." : ""}</p>}
       {devices === null ? <p role="status">Loading devices…</p> : devices.length === 0 ?
         <div className="panel empty"><h3>No devices enrolled</h3><p>Generate a grant to connect an authorized agent.</p></div> :
-        <div className="device-grid">{devices.map(d => <DeviceCard key={d.id} device={d} onRevoke={revoke} onDelete={deleteDevice} onEdit={editDevice} busy={busy} />)}</div>}
+        <div className="device-grid">{devices.map(d => <DeviceCard key={d.id} device={d} onRevoke={revoke} onDelete={deleteDevice} onEdit={editDevice} busy={busy} revealEpoch={revealEpoch} />)}</div>}
     </section>
     <section className="panel clipboard"><h2>Universal clipboard</h2><p>Planned · Not enabled. No clipboard data is collected.</p></section>
   </>;

@@ -55,3 +55,7 @@ Inspect the paired and unpaired layouts, light/dark/auto colors, readable typogr
 ## Native GUI polish acceptance
 
 Verify the wide dashboard logo in both themes, transparent background and proportional DPI scaling. Inspect on/off switch edges at 100%, 125% or 150% scaling, and verify Auto appearance, Tray icon and behavior, existing enrollment and unchanged connection controls. Compare idle working set against the original budget. Automated checks verify exact logo bytes, raster dimensions and antialiased switch pixels; they do not replace the real Windows visual check.
+
+## Live utilization acceptance
+
+Verify old agent remains online against the updated core and new agent connects to old core without telemetry. Verify CPU, RAM and system-drive usage against Windows Task Manager/drive properties after at least two heartbeat intervals. CPU is interval-averaged; RAM and disk use different accounting from some Windows UI views. Test zero and missing measurements, rejection of malformed payloads, disconnect/revoke and absence of IP values in list responses. Reveal Internal IP only with operator session, hide independently, Refresh and F5 reset masking. No external address is claimed until proxy trust is verified. Measure agent CPU and memory again. No database migration required.

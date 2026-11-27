@@ -283,9 +283,9 @@ func (u *nativeUI) start() {
 	}
 	s := u.state
 	u.begin(func(ctx context.Context) error {
-		return agent.Run(ctx, s, http.DefaultClient, func(message string) {
+		return agent.RunWithTelemetry(ctx, s, http.DefaultClient, func(message string) {
 			u.publish(uiEvent{message: message})
-		})
+		}, windowsCollector())
 	}, "Connecting...")
 }
 

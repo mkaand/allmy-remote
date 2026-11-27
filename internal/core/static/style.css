@@ -99,3 +99,9 @@ footer { color: var(--muted); font-size: .8rem; margin-top: 2rem; }
 .icon-option input { position: absolute; width: 1px; height: 1px; min-height: 0; padding: 0; opacity: 0; }
 .icon-option:has(input:checked) { border-color: var(--accent); color: var(--accent); background: var(--hover); }
 .icon-option:has(input:focus-visible) { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+.device-ips { display: grid; gap: .35rem; margin: .65rem 0; }
+.ip-field { display: flex; align-items: center; gap: .45rem; flex-wrap: wrap; font-size: .8rem; }
+.ip-field > span { color: var(--muted); min-width: 5rem; }
+.ip-field code { flex: 1; overflow-wrap: anywhere; min-width: 0; }
+.ip-field button { display: inline-flex; align-items: center; padding: .3rem .5rem; }

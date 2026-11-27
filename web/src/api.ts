@@ -5,6 +5,9 @@ export type Device = {
   icon: string;
   status: "online" | "offline" | "revoked";
   last_seen: number | null;
+  metrics?: {cpu_percent?: number; ram_percent?: number; disk_percent?: number};
+  internal_ip_available?: boolean;
+  external_ip_available?: boolean;
 };
 
 export type Grant = { grant: string; expires_at: number };
@@ -36,6 +39,7 @@ export const api = {
   login: (password: string) => request<{status: string}>("/session/login", "POST", {username: "admin", password}),
   logout: () => request<{status: string}>("/session/logout", "POST"),
   devices: (signal?: AbortSignal) => request<Device[]>("/devices", "GET", undefined, signal),
+  revealIP: (id: string, kind: "internal" | "external", signal?: AbortSignal) => request<{ip: string}>("/devices/" + encodeURIComponent(id) + "/ip", "POST", {kind}, signal),
   grant: (name: string) => request<Grant>("/enrollment/grants", "POST", {name}),
   revoke: (id: string) => request<{status: string}>("/devices/" + encodeURIComponent(id) + "/revoke", "POST"),
   editDevice: (id: string, name: string, icon: string) => request<{status: string}>("/devices/" + encodeURIComponent(id), "PATCH", {name, icon}),

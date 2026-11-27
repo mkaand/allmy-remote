@@ -14,6 +14,7 @@ import (
 
 	"github.com/coder/websocket"
 	"github.com/mkaand/allmy-remote/internal/agent"
+	"github.com/mkaand/allmy-remote/internal/telemetry"
 )
 
 func TestDeviceRegistryLifecycle(t *testing.T) {
@@ -360,13 +361,16 @@ func TestNativeAgentAgainstCore(t *testing.T) {
 	connected := make(chan struct{}, 1)
 	done := make(chan error, 1)
 	go func() {
-		done <- agent.Run(ctx, state, server.Client(), func(status string) {
+		done <- agent.RunWithTelemetry(ctx, state, server.Client(), func(status string) {
 			if status == "Connected; heartbeat only." {
 				select {
 				case connected <- struct{}{}:
 				default:
 				}
 			}
+		}, func() telemetry.Metrics {
+			cpu, ram, disk := uint8(0), uint8(42), uint8(75)
+			return telemetry.Metrics{CPU: &cpu, RAM: &ram, Disk: &disk}
 		})
 	}()
 	select {
@@ -385,6 +389,10 @@ func TestNativeAgentAgainstCore(t *testing.T) {
 			t.Fatal("snapshot failed")
 		}
 		if views[0].LastSeen != nil && *views[0].LastSeen > firstSeen {
+			m := views[0].Metrics
+			if m == nil || m.CPU == nil || *m.CPU != 0 || m.RAM == nil || *m.RAM != 42 || m.Disk == nil || *m.Disk != 75 {
+				t.Fatal("native telemetry missing or invalid")
+			}
 			break
 		}
 		select {

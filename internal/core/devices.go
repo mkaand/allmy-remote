@@ -18,6 +18,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/coder/websocket"
+	"github.com/mkaand/allmy-remote/internal/telemetry"
 )
 
 const (
@@ -43,6 +44,7 @@ type DeviceRegistry struct {
 type deviceConnection struct {
 	cancel   context.CancelFunc
 	lastSeen time.Time
+	sample   *telemetry.Sample
 }
 
 func NewDeviceRegistry(store *Store) *DeviceRegistry {
@@ -88,6 +90,7 @@ func (d *DeviceRegistry) register(mux *http.ServeMux, auth *Auth) {
 	mux.HandleFunc("POST /api/v1/devices/{id}/revoke", operator(true, d.revoke))
 	mux.HandleFunc("DELETE /api/v1/devices/{id}", operator(true, d.deleteRevoked))
 	mux.HandleFunc("PATCH /api/v1/devices/{id}", operator(true, d.editMetadata))
+	mux.HandleFunc("POST /api/v1/devices/{id}/ip", operator(true, d.revealIP))
 	mux.HandleFunc("GET /api/v1/device/channel", d.channel)
 }
 
@@ -289,12 +292,15 @@ func (d *DeviceRegistry) exchange(w http.ResponseWriter, r *http.Request) {
 }
 
 type deviceView struct {
-	ID       string `json:"id"`
-	Name     string `json:"name"`
-	Platform string `json:"platform"`
-	Icon     string `json:"icon"`
-	Status   string `json:"status"`
-	LastSeen *int64 `json:"last_seen"`
+	ID                  string             `json:"id"`
+	Name                string             `json:"name"`
+	Platform            string             `json:"platform"`
+	Icon                string             `json:"icon"`
+	Status              string             `json:"status"`
+	LastSeen            *int64             `json:"last_seen"`
+	Metrics             *telemetry.Metrics `json:"metrics,omitempty"`
+	InternalIPAvailable bool               `json:"internal_ip_available"`
+	ExternalIPAvailable bool               `json:"external_ip_available"`
 }
 
 func (d *DeviceRegistry) list(w http.ResponseWriter, r *http.Request) {
@@ -330,6 +336,10 @@ func (d *DeviceRegistry) snapshot(ctx context.Context) ([]deviceView, error) {
 			v.Status = "revoked"
 		} else if c := d.active[v.ID]; c != nil && !c.lastSeen.IsZero() && d.now().Sub(c.lastSeen) < offlineAfter {
 			v.Status = "online"
+			if c.sample != nil {
+				v.Metrics = &c.sample.Metrics
+				v.InternalIPAvailable = c.sample.InternalIP != ""
+			}
 		}
 		devices = append(devices, v)
 	}
@@ -460,8 +470,15 @@ func parseControl(data []byte, expected string) (controlMessage, bool) {
 		return m, false
 	}
 	p := bytes.TrimSpace(m.Payload)
-	return m, m.Version == 1 && m.Type == expected && validName(m.ID) && m.CorrelationID == "" &&
-		(len(p) == 0 || bytes.Equal(p, []byte("null")) || bytes.Equal(p, []byte("{}")))
+	valid := m.Version == 1 && m.Type == expected && validName(m.ID) && m.CorrelationID == ""
+	if len(p) == 0 || bytes.Equal(p, []byte("null")) || bytes.Equal(p, []byte("{}")) {
+		return m, valid
+	}
+	if expected != "heartbeat" {
+		return m, false
+	}
+	_, err := telemetry.Parse(p)
+	return m, valid && err == nil
 }
 
 func (d *DeviceRegistry) channel(w http.ResponseWriter, r *http.Request) {
@@ -476,8 +493,8 @@ func (d *DeviceRegistry) channel(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	d.mu.Lock()
-	var id string
-	err := d.store.db.QueryRowContext(r.Context(), "SELECT id FROM devices WHERE credential_hash=? AND revoked_at IS NULL", hash[:]).Scan(&id)
+	var id, platform string
+	err := d.store.db.QueryRowContext(r.Context(), "SELECT id,platform FROM devices WHERE credential_hash=? AND revoked_at IS NULL", hash[:]).Scan(&id, &platform)
 	if err != nil {
 		d.mu.Unlock()
 		if errors.Is(err, sql.ErrNoRows) {
@@ -506,7 +523,11 @@ func (d *DeviceRegistry) channel(w http.ResponseWriter, r *http.Request) {
 		}
 		d.mu.Unlock()
 	}()
-	conn, err := websocket.Accept(w, r, nil)
+	var protocols []string
+	if platform == "windows" {
+		protocols = []string{telemetry.Protocol}
+	}
+	conn, err := websocket.Accept(w, r, &websocket.AcceptOptions{Subprotocols: protocols})
 	if err != nil {
 		return
 	}
@@ -531,6 +552,18 @@ func (d *DeviceRegistry) channel(w http.ResponseWriter, r *http.Request) {
 		if !valid || (!previous.IsZero() && now.Sub(previous) < time.Second) {
 			return
 		}
+		var sample *telemetry.Sample
+		p := bytes.TrimSpace(msg.Payload)
+		if expected == "heartbeat" && len(p) != 0 && !bytes.Equal(p, []byte("null")) && !bytes.Equal(p, []byte("{}")) {
+			if conn.Subprotocol() != telemetry.Protocol {
+				return
+			}
+			value, err := telemetry.Parse(p)
+			if err != nil {
+				return
+			}
+			sample = &value
+		}
 		d.mu.Lock()
 		if d.active[id] != entry || ctx.Err() != nil {
 			d.mu.Unlock()
@@ -547,6 +580,7 @@ func (d *DeviceRegistry) channel(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		entry.lastSeen = now
+		entry.sample = sample
 		d.mu.Unlock()
 		previous = now
 		ack := controlMessage{Version: 1, Type: expected + "_ack", ID: msg.ID, CorrelationID: msg.ID}

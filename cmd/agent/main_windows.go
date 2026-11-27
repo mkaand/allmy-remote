@@ -192,12 +192,29 @@ func run() error {
 		if err := os.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
 			return errors.New("cannot remove local enrollment")
 		}
+		if err := setStartup(false); err != nil {
+			return errors.New("local enrollment removed; disable Windows startup manually and revoke in the dashboard")
+		}
 		fmt.Println("Local enrollment removed. Revoke the device in the dashboard too.")
 	}
 	return nil
 }
 
+// guiBuild is set only for the standalone Windows-subsystem executable.
+var guiBuild = "0"
+
 func main() {
+	if guiBuild == "1" {
+		if len(os.Args) > 2 || (len(os.Args) == 2 && os.Args[1] != "--autostart") {
+			alert(0, "Use the separate console agent for command-line operations.", false)
+			return
+		}
+		if err := runGUI(len(os.Args) == 2); err != nil {
+			alert(0, err.Error(), false)
+			os.Exit(1)
+		}
+		return
+	}
 	if err := run(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)

@@ -25,3 +25,8 @@
 
 /internal/core/static/app.js
 /web/test-results/
+
+# Generated native icon resource and preview binaries
+/cmd/agent/icon_windows_amd64.syso
+/allmy-agent.exe
+/allmy-remote.exe

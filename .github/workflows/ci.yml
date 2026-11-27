@@ -91,12 +91,20 @@ jobs:
           go-version: '1.26.11'
           cache: false
       - name: Agent tests
-        run: go test -mod=readonly ./internal/agent ./cmd/agent
+        run: |
+          python tools/windows_icon.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          go test -mod=readonly ./internal/agent ./cmd/agent
       - name: Agent build
-        run: go build -mod=readonly -trimpath -ldflags="-s -w" -o allmy-agent.exe ./cmd/agent
+        run: |
+          go build -mod=readonly -trimpath -ldflags="-s -w" -o allmy-agent.exe ./cmd/agent
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          go build -mod=readonly -trimpath -ldflags="-s -w -H=windowsgui -X main.guiBuild=1" -o allmy-remote.exe ./cmd/agent
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: allmy-agent-windows-x64-preview
-          path: allmy-agent.exe
+          path: |
+            allmy-agent.exe
+            allmy-remote.exe
           if-no-files-found: error
           retention-days: 7
